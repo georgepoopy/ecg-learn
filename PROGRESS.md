@@ -102,3 +102,55 @@ See `REVIEW.md` for the full clinician queue.
 - No paper-scroll/animation ("sweep") yet — the full 10 s is shown statically,
   as on a printout. Easy to add if you want a live-sweep mode.
 - Renderer is presentational and ready to drop into the Phase 3 quiz.
+
+---
+
+## Phase 3 — Learning engine ✅ (awaiting your review)
+
+The full **lesson → unlock → practice → mastery** loop is built and verified
+end-to-end in the browser.
+
+### Decisions I made (autonomously, per your ask)
+- **Sequential progression:** a type's lesson opens only once the previous type
+  (by curriculum order) is unlocked. NSR → AF → 1° AVB → STEMI. Locked types show
+  "Complete previous lesson".
+- **Unlock = bank population:** finishing a lesson flips `TypeProgress.unlocked`
+  and creates a `QuestionState` per question (all due immediately). Practice only
+  ever draws from unlocked types — the bank is genuinely "personal".
+- **Spaced review (SM-2):** wrong answers reset the card and recirculate it in
+  ~1 min (in-session relearn); correct answers graduate 1 day → 6 days →
+  interval × ease. Fast-correct (<6 s) grades higher.
+- **Scheduler:** serves the most-overdue due card first; when nothing is due it
+  offers "practice ahead" (soonest-due card) and flags it in the UI.
+- **Mastery = 0.5·retention + 0.3·accuracy + 0.2·coverage** (0–1), recomputed on
+  every answer; "★ Mastered" at ≥0.8 with full coverage.
+
+### What was built
+- **SRS + mastery** pure logic (`src/lib/srs.ts`).
+- **Server actions** (`src/app/actions.ts`): `unlockType`, `submitAnswer`
+  (grade → schedule → log attempt → recompute mastery), `fetchNextQuestion`
+  (due-first scheduler with practice-ahead).
+- **Read queries** (`src/lib/queries.ts`): curriculum, lesson, dashboard.
+- **Pages:** curriculum home (unlock state, mastery bars, gating), lesson page
+  (`/learn/[id]` with example tracing + key facts + unlock), practice
+  (`/practice`, optional `?type=`), progress dashboard (`/dashboard`).
+- **Quiz** (`src/components/Quiz.tsx`): waveform + 4-option MCQ, immediate
+  feedback with the authored explanation + live mastery, **keyboard-driven**
+  (1–4 to pick, Enter to check/advance), session accuracy, diagnostic-lead
+  spotlight revealed after answering.
+- **Nav + dark-mode toggle** in the layout; `npm run progress:reset` to clear
+  progress while keeping content.
+
+### Verified in-browser (full walk-through)
+Unlocked NSR → practiced → correct answer showed green highlight + explanation +
+mastery 31% → "due" dropped 24→23 (card scheduled forward) → dashboard showed
+1/4 unlocked, 100% accuracy, per-type mastery bar. Wrong answer showed "Not
+quite". Keyboard select + submit confirmed. Progress reset to a clean slate for
+your review.
+
+### ⚠️ Notes for your review
+- Only the 4 seeded types exist yet (Phase 5 scales the curriculum).
+- Single local user (`id: "local"`) — no auth, as intended for a personal study
+  app. Multi-user would need a session layer.
+- SM-2 lapse interval (60 s in-session) is a study-UX choice; tell me if you'd
+  prefer a different relearn cadence.
