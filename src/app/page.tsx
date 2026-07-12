@@ -1,18 +1,8 @@
 import Link from "next/link";
 import { getCurriculum } from "@/lib/queries";
+import AnimatedBar from "@/components/AnimatedBar";
 
 export const dynamic = "force-dynamic";
-
-function MasteryBar({ score }: { score: number }) {
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-      <div
-        className="h-full rounded-full bg-clinical-500 transition-all"
-        style={{ width: `${Math.round(score * 100)}%` }}
-      />
-    </div>
-  );
-}
 
 export default async function Home() {
   const items = await getCurriculum();
@@ -41,16 +31,17 @@ export default async function Home() {
       </div>
 
       <ol className="mt-8 space-y-3">
-        {items.map((t) => {
+        {items.map((t, idx) => {
           const locked = !t.available && !t.unlocked;
           return (
             <li
               key={t.id}
+              style={{ animationDelay: `${idx * 60}ms` }}
               className={
-                "rounded-lg border p-4 " +
+                "rounded-lg border p-4 shadow-card motion-safe:animate-fade-slide-up " +
                 (locked
                   ? "border-slate-200 bg-slate-50/60 opacity-70 dark:border-slate-800 dark:bg-slate-900/30"
-                  : "border-slate-200 bg-white/60 dark:border-slate-800 dark:bg-slate-900/40")
+                  : "border-slate-200 bg-white/70 transition-shadow hover:shadow-lift dark:border-slate-800 dark:bg-slate-900/40")
               }
             >
               <div className="flex items-start justify-between gap-3">
@@ -82,7 +73,10 @@ export default async function Home() {
                   <p className="text-sm text-slate-500 dark:text-slate-400">{t.summary}</p>
                   {t.unlocked && (
                     <div className="mt-2 max-w-xs">
-                      <MasteryBar score={t.masteryScore} />
+                      <AnimatedBar
+                        value={t.masteryScore}
+                        barClassName={t.mastered ? "bg-amber-400" : "bg-clinical-500"}
+                      />
                       <span className="mt-1 block text-[10px] text-slate-400">
                         Mastery {Math.round(t.masteryScore * 100)}%
                       </span>

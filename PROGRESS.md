@@ -154,3 +154,44 @@ your review.
   app. Multi-user would need a session layer.
 - SM-2 lapse interval (60 s in-session) is a study-UX choice; tell me if you'd
   prefer a different relearn cadence.
+
+---
+
+## Phase 4 — UX polish ✅ (awaiting your review)
+
+Focused on making the app feel slick and responsive, with tasteful motion that
+respects `prefers-reduced-motion`.
+
+### Micro-interactions & motion
+- **Universal press feedback** — every button/`[role=button]` scales down
+  slightly on press (global CSS), so the whole UI feels tactile.
+- **Quiz answer reveal** — the correct option **pops**, a wrong pick **shakes**,
+  non-answers **dim**, and check/✗ marks **pop in**. Correct feedback panel gives
+  a soft green **success pulse**.
+- **Animated question transitions** — each new card fades/slides up.
+- **Animated mastery bars** (`AnimatedBar`) grow from 0 with an easing curve on
+  the dashboard, curriculum, and in-quiz feedback.
+- **Selected option** gets a ring + glow and a filled key badge; **staggered
+  entrance** on curriculum cards, dashboard stats, and lesson sections.
+- Card **hover-lift** shadows; smooth **theme cross-fade** on light/dark switch.
+
+### Flow & clarity
+- **Keyboard-first quiz**: 1–N to choose, Enter to check/advance, with an inline
+  key-hint and auto-focused "Next card". Clear `:focus-visible` rings throughout.
+- **Sticky, blurred header** with a waveform-glyph wordmark and an **active-route
+  underline indicator** (`NavLinks`).
+- Refined "all caught up" and feedback states; thin custom scrollbars for the
+  wide ECG canvas.
+
+### Themes
+- Both light and dark refined and verified in-browser across curriculum, lesson,
+  practice (correct + incorrect states), and dashboard. Dark mode persists via
+  `localStorage` with a no-flash init script.
+
+### Verified in-browser
+Walked the full flow in both themes: unlock → select (ring/glow) → correct
+(green pop + animated mastery bar to 31%) → wrong (rose shake + drop to 17%) →
+dashboard (animated stats + bars). All motion is `motion-safe:` gated.
+
+### Notes
+- No new medical content changed in this phase — purely presentation/interaction.

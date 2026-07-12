@@ -71,7 +71,11 @@ export default async function LessonPage({
       {/* Lesson body */}
       <div className="mt-8 space-y-6">
         {lesson.sections.map((s, i) => (
-          <section key={i}>
+          <section
+            key={i}
+            style={{ animationDelay: `${i * 80}ms` }}
+            className="border-l-2 border-clinical-200 pl-4 motion-safe:animate-fade-slide-up dark:border-clinical-800"
+          >
             <h2 className="font-semibold text-slate-800 dark:text-slate-100">{s.heading}</h2>
             <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
               {s.body}

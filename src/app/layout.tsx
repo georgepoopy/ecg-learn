@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import NavLinks from "@/components/NavLinks";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,21 +34,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           ⚕ Educational tool for learning ECG interpretation — <strong>not for clinical diagnosis.</strong>
         </div>
 
-        <header className="border-b border-slate-200 dark:border-slate-800">
-          <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-            <Link href="/" className="font-semibold text-clinical-700 dark:text-clinical-200">
+        <header className="sticky top-[29px] z-40 border-b border-slate-200 bg-canvas-light/80 backdrop-blur dark:border-slate-800 dark:bg-canvas-dark/80">
+          <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-2.5">
+            <Link
+              href="/"
+              className="flex items-center gap-2 font-semibold text-clinical-700 dark:text-clinical-200"
+            >
+              <span aria-hidden className="text-clinical-500">〜</span>
               ECG&nbsp;Learn
             </Link>
-            <div className="flex items-center gap-4 text-sm">
-              <Link href="/" className="text-slate-600 hover:text-clinical-700 dark:text-slate-300">
-                Curriculum
-              </Link>
-              <Link href="/practice" className="text-slate-600 hover:text-clinical-700 dark:text-slate-300">
-                Practice
-              </Link>
-              <Link href="/dashboard" className="text-slate-600 hover:text-clinical-700 dark:text-slate-300">
-                Progress
-              </Link>
+            <div className="flex items-center gap-3">
+              <NavLinks />
               <ThemeToggle />
             </div>
           </nav>
