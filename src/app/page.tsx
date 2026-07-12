@@ -22,6 +22,13 @@ export default async function Home() {
         seeded from PTB-XL.)
       </p>
 
+      <a
+        href="/preview"
+        className="mt-4 inline-block rounded-md bg-clinical-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-clinical-700"
+      >
+        View waveform renderer →
+      </a>
+
       <ul className="mt-8 space-y-3">
         {types.map((t) => (
           <li

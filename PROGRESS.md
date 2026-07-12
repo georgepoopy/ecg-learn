@@ -59,3 +59,46 @@ lead II of a sample decodes to ~1.04 mV peak-to-peak (physiological).
 5. Sample size is **24/type** for now — trivially scalable in Phase 5.
 
 See `REVIEW.md` for the full clinician queue.
+
+---
+
+## Phase 2 — Waveform renderer ✅ (awaiting your review)
+
+### What was built
+- **`EcgCanvas`** (`src/components/EcgCanvas.tsx`) — the accurate `<canvas>`
+  renderer. Everything is drawn in **millimetre coordinates** (the context is
+  scaled by pixels-per-mm × devicePixelRatio), so the grid and trace are always
+  spatially calibrated: 25 mm/s and 10 mm/mV are physically truthful, and the
+  backing resolution is just zoom. Features:
+  - Proper **ECG paper grid** — 1 mm minor + 5 mm major squares, pink in light
+    mode, subtle red in dark mode.
+  - **1 mV calibration pulse** in the left gutter of every track (height tracks
+    the selected gain).
+  - **Classic 3×4 layout** (I/aVR/V1/V4 · II/aVL/V2/V5 · III/aVF/V3/V6), each
+    cell a continuous 2.5 s window, plus a **full 10 s lead-II rhythm strip** —
+    the layout you chose.
+  - **Stacked 12-lead layout** as an alternate (useful for lead-focused STEMI
+    teaching).
+  - Per-track clipping so tall complexes don't bleed between rows; lead labels;
+    optional **lead spotlight** (diagnostic lead drawn in accent colour).
+  - Live **redraw on theme toggle** (MutationObserver) and on resize/DPR change.
+- **`EcgViewer`** (`src/components/EcgViewer.tsx`) — control bar: paper speed
+  (25/50 mm/s), gain (5/10/20 mm/mV), layout toggle, and spotlight toggle.
+- **`src/lib/ecg.ts`** — dependency-free base64→per-lead-mV decoder (runs in the
+  browser), lead-name normalisation (AVR→aVR), and layout/calibration constants.
+- **Preview page** (`/preview`) — one real tracing per type on the calibrated
+  grid, to eyeball the renderer.
+
+### Verified (in a real browser via the preview harness)
+- Canvas geometry is exactly right (263 mm × 121 mm at 3 px/mm).
+- Sinus, AF, 1° AVB, STEMI tracings all render with clear P-QRS-T morphology.
+- Controls respond (speed widens the trace, gain scales amplitude + pulse),
+  3×4 ↔ stacked switch works, and dark mode redraws correctly.
+
+### ⚠️ Notes for your review
+- Amplitude is **not clipped to a fixed track height** beyond a soft per-row
+  clip; at 20 mm/mV very large complexes can touch the neighbouring row. This is
+  expected behaviour (lower the gain), but tell me if you'd prefer hard scaling.
+- No paper-scroll/animation ("sweep") yet — the full 10 s is shown statically,
+  as on a printout. Easy to add if you want a live-sweep mode.
+- Renderer is presentational and ready to drop into the Phase 3 quiz.
