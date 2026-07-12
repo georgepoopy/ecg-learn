@@ -1,0 +1,127 @@
+// ECG Learn — data model
+// SQLite via Prisma. JSON-ish fields are stored as String and parsed in app code
+// for maximum SQLite portability. Waveform samples are stored as base64 of the
+// raw interleaved Int16 array (faithful to the PTB-XL WFDB signal), decoded by
+// the canvas renderer.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+/// A teachable ECG type (the unit of a lesson + its question bank).
+model EcgType {
+  id         String   @id // slug, e.g. "afib"
+  name       String // "Atrial fibrillation"
+  shortName  String // "AF"
+  superclass String // NORM | RHYTHM | CD | MI | STTC | HYP
+  scpCodes   String // JSON array of PTB-XL SCP codes that map to this type
+  summary    String // one-line teaser
+  order      Int      @default(0)
+
+  lesson    Lesson?
+  questions Question[]
+  progress  TypeProgress[]
+}
+
+/// Structured lesson content for a type (authored originally).
+model Lesson {
+  id         String  @id @default(cuid())
+  typeId     String  @unique
+  type       EcgType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  estMinutes Int     @default(5)
+  sections   String // JSON: [{ heading, body }]
+  keyFacts   String // JSON: string[] (the criteria this type is identified by)
+}
+
+/// A decoded PTB-XL waveform record (12-lead, 10 s).
+model Record {
+  id         String @id // e.g. "ptbxl-00123"
+  ecgId      Int    @unique
+  fs         Int // sampling rate (Hz)
+  nSamples   Int
+  gain       Float // ADU per mV (from .hea)
+  leads      String // JSON: string[] lead names in signal order
+  signalsB64 String // base64 of Int16 interleaved samples (sample-major)
+  ptbReport  String? // original clinician report string (reference only)
+
+  questions Question[]
+}
+
+/// An identification question: show a real waveform, pick the diagnosis/rhythm.
+model Question {
+  id              String  @id @default(cuid())
+  typeId          String
+  type            EcgType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  recordId        String
+  record          Record  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  stem            String
+  options         String // JSON: [{ id, label }]
+  correctOptionId String
+  explanation     String
+  difficulty      Int     @default(1) // 1 easy .. 3 hard
+  leadFocus       String? // optional lead to spotlight
+
+  states  QuestionState[]
+  attempts Attempt[]
+}
+
+/// Single local user (this is a single-user local study app).
+model User {
+  id        String   @id @default("local")
+  createdAt DateTime @default(now())
+
+  typeProgress   TypeProgress[]
+  questionStates QuestionState[]
+  attempts       Attempt[]
+}
+
+/// Per-type unlock + mastery.
+model TypeProgress {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  typeId       String
+  type         EcgType   @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  unlocked     Boolean   @default(false)
+  unlockedAt   DateTime?
+  masteryScore Float     @default(0) // 0..1 rolling accuracy-weighted mastery
+  seenCount    Int       @default(0)
+  correctCount Int       @default(0)
+
+  @@unique([userId, typeId])
+}
+
+/// Spaced-repetition state per question (SM-2 style).
+model QuestionState {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  ease         Float     @default(2.5)
+  intervalDays Float     @default(0)
+  repetitions  Int       @default(0)
+  dueAt        DateTime  @default(now())
+  lastGrade    Int?
+  lastSeenAt   DateTime?
+
+  @@unique([userId, questionId])
+}
+
+/// Answer log (for analytics + mastery updates).
+model Attempt {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId     String
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  correct        Boolean
+  chosenOptionId String
+  responseMs     Int?
+  createdAt      DateTime @default(now())
+}
