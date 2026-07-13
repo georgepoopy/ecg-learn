@@ -15,7 +15,9 @@ export default async function PracticePage({
 
   const curriculum = await getCurriculum();
   const anyUnlocked = curriculum.some((t) => t.unlocked);
-  const initial = anyUnlocked ? await fetchNextQuestion(type) : null;
+  const initial = anyUnlocked
+    ? await fetchNextQuestion({ preferType: type, mode: "review" })
+    : null;
 
   if (!anyUnlocked) {
     return (
@@ -40,17 +42,27 @@ export default async function PracticePage({
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-clinical-700 dark:text-clinical-200">
-          {activeType ? `Practice · ${activeType.name}` : "Practice"}
+          {activeType ? `Review · ${activeType.name}` : "Review"}
         </h1>
-        {activeType && (
-          <Link href="/practice" className="text-xs text-slate-400 hover:text-slate-600">
-            Practice all unlocked →
+        <div className="flex gap-3 text-xs">
+          <Link href="/free" className="text-slate-400 hover:text-clinical-600">
+            Free practice →
           </Link>
-        )}
+          {activeType && (
+            <Link href="/practice" className="text-slate-400 hover:text-clinical-600">
+              All types →
+            </Link>
+          )}
+        </div>
       </div>
-      <Quiz initial={initial} preferType={type} />
+      <p className="mb-5 text-xs text-slate-400">
+        {activeType
+          ? "Due items from this type, weighted by what needs work."
+          : "Interleaved across everything you've learned — due items first, weak areas weighted higher."}
+      </p>
+      <Quiz initial={initial} preferType={type} mode="review" />
     </div>
   );
 }

@@ -298,3 +298,48 @@ graded them correctly.
 ### ⚠️ For clinician review — REVIEW.md items 13–17
 Computed-rate method, computed-axis method, the "which-finding ⇒ others absent"
 label-completeness assumption, territory lead-mapping, and the tier assignments.
+
+## R2 Phase 2 — FSRS, interleaving, Free Practice, dashboard ✅
+
+Turned the ordered course into an open, self-paced growing bank with real spaced
+repetition.
+
+### Spaced repetition (FSRS)
+- Integrated **ts-fsrs** (FSRS-5). `src/lib/fsrs.ts` wraps it: maps our
+  `QuestionState` ↔ FSRS `Card`, maps an MCQ result to a rating (wrong→Again,
+  correct→Good, fast→Easy, slow→Hard), and exposes **predicted recall**.
+- `QuestionState` now stores the full FSRS card (stability, difficulty, reps,
+  lapses, state, due, …). `submitAnswer` schedules via FSRS.
+
+### Cumulative, interleaved review (the key mechanic)
+- Learning a type adds its questions to the bank **permanently**. Review
+  (`/practice`) now **interleaves across everything unlocked**, not just the
+  newest type. Verified: 4 consecutive cards spanned 4 different types.
+- Selection is **weighted**: due items strongly preferred; **weak types**
+  (low mastery) and **fragile items** (low stability) up-weighted; the same type
+  twice in a row is down-weighted so old and new material mix.
+
+### Free Practice mode
+- New `/free` page: self-paced drilling across the whole bank, **no due gating**,
+  weak items first. Filter chips by **difficulty tier** and **question kind**.
+  Verified filters work (e.g. `kind=rate` serves only rate questions).
+
+### Self-paced library
+- Home is now a **hub + library**: action cards (Review due / Free practice /
+  Continue course) plus every type learnable **in any order** (sequential gating
+  removed; the course order is now just a "Suggested next" hint).
+
+### Mastery dashboard
+- Added **Focus here (weakest)** and **Strengths** (by mastery), **accuracy by
+  difficulty tier**, **bank size**, and **FSRS predicted recall**. Verified the
+  weak-areas list and tier breakdown populate from real attempts.
+
+### Plumbing
+- `src/lib/user.ts` `getUserId()` centralises identity (returns "local" now;
+  Phase 4 swaps it for the auth session — no query changes needed then).
+
+### Verified
+Build clean (routes: /, /practice, /free, /dashboard, /learn, /preview); FSRS
+grading persists; interleaving, free-mode filters, library, and dashboard
+analytics all confirmed in-browser via DOM/interaction (screenshot tool was
+flaky this session, so verification was functional rather than visual).

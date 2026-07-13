@@ -1,8 +1,8 @@
 /** Read-side queries for server components (curriculum, lesson, dashboard). */
 import { prisma } from "@/lib/prisma";
 import { isMastered } from "@/lib/srs";
-
-const USER_ID = "local";
+import { getUserId } from "@/lib/user";
+import { retrievability } from "@/lib/fsrs";
 
 export interface CurriculumItem {
   id: string;
@@ -11,10 +11,11 @@ export interface CurriculumItem {
   superclass: string;
   summary: string;
   order: number;
+  tier: string;
   estMinutes: number;
   questionCount: number;
   unlocked: boolean;
-  /** Lesson can be opened (previous type unlocked, or it's the first). */
+  /** Suggested next in the guided course (previous type unlocked, or first). */
   available: boolean;
   masteryScore: number;
   mastered: boolean;
@@ -25,6 +26,7 @@ export interface CurriculumItem {
 
 export async function getCurriculum(): Promise<CurriculumItem[]> {
   const now = new Date();
+  const USER_ID = await getUserId();
   const types = await prisma.ecgType.findMany({
     orderBy: { order: "asc" },
     include: {
@@ -68,6 +70,7 @@ export async function getCurriculum(): Promise<CurriculumItem[]> {
       superclass: t.superclass,
       summary: t.summary,
       order: t.order,
+      tier: t.tier,
       estMinutes: t.lesson?.estMinutes ?? 5,
       questionCount,
       unlocked,
@@ -106,6 +109,7 @@ export interface LessonView {
 }
 
 export async function getLesson(typeId: string): Promise<LessonView | null> {
+  const USER_ID = await getUserId();
   const type = await prisma.ecgType.findUnique({
     where: { id: typeId },
     include: {
@@ -122,13 +126,8 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
   });
   if (!type || !type.lesson) return null;
 
-  // Availability: previous-by-order type must be unlocked (or none exists).
-  const prev = await prisma.ecgType.findFirst({
-    where: { order: { lt: type.order } },
-    orderBy: { order: "desc" },
-    include: { progress: { where: { userId: USER_ID } } },
-  });
-  const available = !prev || (prev.progress[0]?.unlocked ?? false);
+  // Self-paced: every lesson is available anytime (no forced ordering).
+  const available = true;
 
   const q = type.questions[0];
   const rec = q?.record;
@@ -157,6 +156,13 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
   };
 }
 
+export interface TierStat {
+  tier: string;
+  attempts: number;
+  correct: number;
+  accuracy: number;
+}
+
 export interface DashboardData {
   types: CurriculumItem[];
   totals: {
@@ -167,14 +173,63 @@ export interface DashboardData {
     totalAttempts: number;
     correctAttempts: number;
     bankSize: number; // questions in unlocked types
+    avgRetention: number; // FSRS predicted recall across reviewed cards (0..1)
   };
+  tierStats: TierStat[];
+  /** Weakest unlocked types (lowest mastery), for "focus here" guidance. */
+  weakAreas: CurriculumItem[];
+  strongAreas: CurriculumItem[];
 }
 
+const TIER_ORDER = ["foundational", "intermediate", "advanced", "expert"];
+
 export async function getDashboard(): Promise<DashboardData> {
+  const USER_ID = await getUserId();
   const types = await getCurriculum();
   const attempts = await prisma.attempt.count({ where: { userId: USER_ID } });
   const correct = await prisma.attempt.count({ where: { userId: USER_ID, correct: true } });
   const bankSize = types.filter((t) => t.unlocked).reduce((n, t) => n + t.questionCount, 0);
+
+  // Per-tier accuracy from the attempt log.
+  const attemptRows = await prisma.attempt.findMany({
+    where: { userId: USER_ID },
+    select: { correct: true, question: { select: { tier: true } } },
+  });
+  const tierMap = new Map<string, { a: number; c: number }>();
+  for (const r of attemptRows) {
+    const t = r.question.tier;
+    const e = tierMap.get(t) ?? { a: 0, c: 0 };
+    e.a++;
+    if (r.correct) e.c++;
+    tierMap.set(t, e);
+  }
+  const tierStats: TierStat[] = TIER_ORDER.filter((t) => tierMap.has(t)).map((t) => {
+    const e = tierMap.get(t)!;
+    return { tier: t, attempts: e.a, correct: e.c, accuracy: e.a ? e.c / e.a : 0 };
+  });
+
+  // Predicted retention across reviewed cards (FSRS retrievability).
+  const reviewed = await prisma.questionState.findMany({
+    where: { userId: USER_ID, reps: { gt: 0 } },
+    select: {
+      dueAt: true, stability: true, difficulty: true, elapsedDays: true,
+      scheduledDays: true, reps: true, lapses: true, learningSteps: true,
+      state: true, lastReview: true,
+    },
+  });
+  let retSum = 0;
+  for (const s of reviewed) {
+    retSum += retrievability({
+      dueAt: s.dueAt, stability: s.stability, difficulty: s.difficulty,
+      elapsedDays: s.elapsedDays, scheduledDays: s.scheduledDays, reps: s.reps,
+      lapses: s.lapses, learningSteps: s.learningSteps, state: s.state,
+      lastReview: s.lastReview,
+    });
+  }
+  const avgRetention = reviewed.length ? retSum / reviewed.length : 0;
+
+  const unlocked = types.filter((t) => t.unlocked && t.seenCount > 0);
+  const byMastery = [...unlocked].sort((a, b) => a.masteryScore - b.masteryScore);
 
   return {
     types,
@@ -186,6 +241,10 @@ export async function getDashboard(): Promise<DashboardData> {
       totalAttempts: attempts,
       correctAttempts: correct,
       bankSize,
+      avgRetention,
     },
+    tierStats,
+    weakAreas: byMastery.slice(0, 3),
+    strongAreas: byMastery.slice(-3).reverse(),
   };
 }

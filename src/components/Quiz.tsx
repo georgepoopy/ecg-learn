@@ -10,9 +10,15 @@ import type { QuestionPayload, SubmitResult } from "@/lib/types";
 export default function Quiz({
   initial,
   preferType,
+  mode = "review",
+  tier,
+  kind,
 }: {
   initial: QuestionPayload | null;
   preferType?: string;
+  mode?: "review" | "free";
+  tier?: string;
+  kind?: string;
 }) {
   const [current, setCurrent] = useState<QuestionPayload | null>(initial);
   const [selected, setSelected] = useState<string | null>(null);
@@ -38,7 +44,13 @@ export default function Quiz({
   const next = useCallback(async () => {
     if (busy) return;
     setBusy(true);
-    const q = await fetchNextQuestion(preferType, current?.questionId);
+    const q = await fetchNextQuestion({
+      preferType,
+      excludeId: current?.questionId,
+      mode,
+      tier,
+      kind,
+    });
     if (!q) {
       setCaughtUp(true);
       setCurrent(null);
@@ -48,7 +60,7 @@ export default function Quiz({
       setResult(null);
     }
     setBusy(false);
-  }, [busy, preferType, current?.questionId]);
+  }, [busy, preferType, current?.questionId, mode, tier, kind]);
 
   // Keyboard: 1–4 pick, Enter submit/advance.
   useEffect(() => {
