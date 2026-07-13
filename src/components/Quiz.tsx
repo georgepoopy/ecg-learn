@@ -7,6 +7,23 @@ import AnimatedBar from "./AnimatedBar";
 import { submitAnswer, fetchNextQuestion } from "@/app/actions";
 import type { QuestionPayload, SubmitResult } from "@/lib/types";
 
+const TIER_STYLE: Record<string, string> = {
+  foundational: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  intermediate: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+  advanced: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  expert: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+};
+
+const KIND_LABEL: Record<string, string> = {
+  identify: "Identify",
+  "which-finding": "Which finding",
+  rate: "Rate",
+  axis: "Axis",
+  territory: "Territory",
+  lead: "Lead",
+  criteria: "Concept",
+};
+
 export default function Quiz({
   initial,
   preferType,
@@ -115,9 +132,15 @@ export default function Quiz({
     <div key={current.questionId} className="space-y-4 motion-safe:animate-fade-slide-up">
       {/* Session header */}
       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="rounded bg-clinical-100 px-1.5 py-0.5 font-semibold text-clinical-700 dark:bg-clinical-900 dark:text-clinical-200">
             {current.shortName}
+          </span>
+          <span className={"rounded px-1.5 py-0.5 font-medium " + (TIER_STYLE[current.tier] ?? "")}>
+            {current.tier}
+          </span>
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            {KIND_LABEL[current.kind] ?? current.kind}
           </span>
           {current.ahead ? (
             <span className="text-amber-600 dark:text-amber-400">Practicing ahead</span>

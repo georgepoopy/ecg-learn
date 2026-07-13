@@ -403,3 +403,31 @@ Made the app deployable for real, multi-user hosting.
 ### Scaling note
 Waveforms live in the DB as 250 Hz base64 (lean); DEPLOY.md documents moving
 blobs to object storage at much larger scale.
+
+## R2 Phase 5 — Polish + full regression ✅
+
+### Polish
+- Quiz header now shows a **difficulty-tier chip** (colour-coded) and a
+  **question-kind label** (Identify / Which finding / Rate / Axis / Territory /
+  Lead / Concept) next to the type — orientation for the now-varied bank.
+
+### Full regression self-check (fresh account, in-browser, libSQL adapter)
+All green, zero console errors:
+- **Auth:** unauth → /signin redirect; sign-up (bcrypt) → private empty bank;
+  second account isolated; sign-in restores persisted progress; sign-out.
+- **Interleaved review:** consecutive cards alternate across learned types
+  (NSR ↔ AF); tier + kind badges render per card.
+- **Free practice:** tier filter serves only that tier (intermediate confirmed);
+  kind filter works; Concept filter reaches authored items.
+- **Dashboard:** learned count, predicted-recall, weak/strong areas, per-tier
+  accuracy, bank size all populate from real attempts.
+- **Renderer:** correct geometry (789×363 @ 3px/mm), 250 Hz downsampled tracings,
+  all 22 waveform-backed type tabs, calibration controls, lead spotlight.
+- **Dark mode** across every surface; production build clean.
+
+### Round-2 result
+From 360 → **~1,968 questions**, 12 → **26 types** across 7 modules, 1 question
+kind → **7 kinds** with difficulty tiers, SM-2 → **FSRS** with cumulative
+interleaved review + Free Practice, single-file SQLite → **Turso/libSQL** with
+**multi-user auth**, and a **DEPLOY.md** to put it online. Clinician-review queue
+(`REVIEW.md`) grew to 21 flagged items.
