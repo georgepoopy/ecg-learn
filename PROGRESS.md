@@ -246,3 +246,55 @@ flutter rate/conduction statements — all handled conservatively, all flagged.
 ### Dev utilities
 - `scripts/dev-unlock-all.ts` — unlock every type locally (for testing practice).
 - `npm run progress:reset` — clear progress, keep content.
+
+---
+
+# ROUND 2 — growing bank, spaced repetition, deployability
+
+## R2 Phase 1 — Full-SCP generator ✅
+
+Rebuilt the question generator to scale the bank and add hard/niche variety.
+
+### What changed
+- **Full SCP registry** (`scripts/ingest/labels.ts`): all 71 PTB-XL SCP
+  statements with human names, category (rhythm/form/diagnostic), best-fit
+  superclass, a **difficulty tier**, and a one-line factual descriptor. Every
+  code can now appear as an answer, a distractor, or a "finding present" option.
+- **6 new data-backed types** (18 total): sinus arrhythmia, atrial premature
+  complexes, paced rhythm, RVH, left atrial enlargement, ischemic ST–T changes —
+  each with an authored lesson.
+- **Signal features** (`scripts/ingest/features.ts`): a lightweight R-peak
+  detector → ventricular **rate**, and net-QRS-in-I/aVF → frontal **axis**.
+- **Multi-template generator** (`scripts/ingest/generate.ts`), 6 question kinds:
+  `identify`, `which-finding` (concurrent finding on multi-label ECGs), `rate`,
+  `axis`, `territory` (MI only), `lead`. **Every question explains why the answer
+  is right and why the distractors are wrong.**
+- **Accuracy guard:** computed rate/axis answers are emitted **only when they
+  agree with PTB-XL's own labels** (rate vs SBRAD/STACH/NORM; axis vs
+  `heart_axis`). Ingest self-check: 0/362 rate questions inconsistent.
+- **Difficulty tiers** tagged on every question (foundational→expert).
+- **Waveforms downsampled to 250 Hz** at ingest (halves storage for the hosted
+  DB in Phase 4; the renderer already reads `fs`, so it's visually unchanged).
+- **Balance/dedupe:** per-type caps per question kind; one question per
+  (record, kind) so no exact duplicates; variety comes from distinct waveforms.
+
+### Result
+**1,735 questions** (from 360) across **18 types** and **6 kinds**, distributed
+foundational 469 / intermediate ~765 / advanced ~730 / expert 5.
+By kind: identify 540 · which-finding 357 · rate 362 · axis 252 · lead 204 ·
+territory 20. 789 real waveform records.
+
+### Schema
+`Question` gained `kind`, `tier`, `labels`, `topic`, `authored`, and a **nullable
+`recordId`** (for authored waveform-free items in Phase 3). `EcgType` gained
+`tier`. App code updated to render record-less questions.
+
+### Verified
+Build clean; verify.ts sampled every kind (explanations read well, distractors
+plausible); rate cross-check 0 inconsistent; downsample confirmed (fs 250,
+2500 samples); in-browser the quiz served identify/axis/lead/rate questions and
+graded them correctly.
+
+### ⚠️ For clinician review — REVIEW.md items 13–17
+Computed-rate method, computed-axis method, the "which-finding ⇒ others absent"
+label-completeness assumption, territory lead-mapping, and the tier assignments.

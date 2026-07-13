@@ -9,6 +9,7 @@ export default async function PreviewPage() {
     include: {
       questions: {
         take: 1,
+        where: { recordId: { not: null } },
         orderBy: { id: "asc" },
         include: { record: true },
       },
@@ -16,10 +17,10 @@ export default async function PreviewPage() {
   });
 
   const records: PreviewRecord[] = types
-    .filter((t) => t.questions.length > 0)
+    .filter((t) => t.questions.length > 0 && t.questions[0].record)
     .map((t) => {
       const q = t.questions[0];
-      const rec = q.record;
+      const rec = q.record!;
       return {
         typeId: t.id,
         typeName: t.name,

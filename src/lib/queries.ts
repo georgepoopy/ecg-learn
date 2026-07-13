@@ -111,7 +111,13 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
     include: {
       lesson: true,
       progress: { where: { userId: USER_ID } },
-      questions: { take: 1, orderBy: { id: "asc" }, include: { record: true } },
+      // Prefer an "identify" question with a real waveform for the lesson example.
+      questions: {
+        take: 1,
+        where: { kind: "identify", recordId: { not: null } },
+        orderBy: { id: "asc" },
+        include: { record: true },
+      },
     },
   });
   if (!type || !type.lesson) return null;

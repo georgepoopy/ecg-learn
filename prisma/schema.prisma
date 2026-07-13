@@ -22,6 +22,7 @@ model EcgType {
   scpCodes   String // JSON array of PTB-XL SCP codes that map to this type
   summary    String // one-line teaser
   order      Int      @default(0)
+  tier       String   @default("intermediate") // foundational|intermediate|advanced|expert
 
   lesson    Lesson?
   questions Question[]
@@ -52,21 +53,26 @@ model Record {
   questions Question[]
 }
 
-/// An identification question: show a real waveform, pick the diagnosis/rhythm.
+/// A question. Usually shows a real waveform, but authored items may have none.
 model Question {
-  id              String  @id @default(cuid())
+  id              String   @id @default(cuid())
   typeId          String
-  type            EcgType @relation(fields: [typeId], references: [id], onDelete: Cascade)
-  recordId        String
-  record          Record  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  type            EcgType  @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  recordId        String? // null for authored (waveform-free) items
+  record          Record?  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  kind            String   @default("identify") // identify|which-finding|rate|axis|territory|lead|criteria
+  tier            String   @default("foundational") // foundational|intermediate|advanced|expert
   stem            String
   options         String // JSON: [{ id, label }]
   correctOptionId String
   explanation     String
-  difficulty      Int     @default(1) // 1 easy .. 3 hard
+  difficulty      Int      @default(1) // 1..4 mirrors tier
+  labels          String   @default("[]") // JSON: SCP codes present on the record
+  topic           String? // niche topic slug for authored items (e.g. "brugada")
+  authored        Boolean  @default(false) // true = original authored, not PTB-XL derived
   leadFocus       String? // optional lead to spotlight
 
-  states  QuestionState[]
+  states   QuestionState[]
   attempts Attempt[]
 }
 

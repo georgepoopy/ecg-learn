@@ -65,16 +65,20 @@ function toPayload(state: StateWithQuestion, dueRemaining: number, ahead: boolea
     typeName: q.type.name,
     shortName: q.type.shortName,
     stem: q.stem,
+    kind: q.kind,
+    tier: q.tier,
     options: JSON.parse(q.options),
     leadFocus: q.leadFocus,
-    record: {
-      ecgId: q.record.ecgId,
-      signalsB64: q.record.signalsB64,
-      leadOrder: JSON.parse(q.record.leads),
-      gain: q.record.gain,
-      fs: q.record.fs,
-      nSamples: q.record.nSamples,
-    },
+    record: q.record
+      ? {
+          ecgId: q.record.ecgId,
+          signalsB64: q.record.signalsB64,
+          leadOrder: JSON.parse(q.record.leads),
+          gain: q.record.gain,
+          fs: q.record.fs,
+          nSamples: q.record.nSamples,
+        }
+      : null,
     dueRemaining,
     ahead,
   };

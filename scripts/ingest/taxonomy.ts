@@ -10,6 +10,8 @@
  *   NORM (Foundations) · RHYTHM · CD (Conduction) · HYP (Chambers) · MI (Ischemia)
  */
 
+import { LABELS, type Tier } from "./labels";
+
 /** PTB-XL scp_codes is a map { CODE: likelihood(0..100) }. */
 export type ScpMap = Record<string, number>;
 
@@ -46,8 +48,27 @@ export interface TypeDef {
   answerLabel: string;
   confusableWith: string[];
   leadFocus?: string;
+  /** Difficulty tier for this type's identify questions (default from label). */
+  tier?: Tier;
+  /** One-line "why this and not that" hint used when this type is a distractor. */
+  distractorHint?: string;
   match: (row: PtbRow) => boolean;
   lesson: LessonContent;
+}
+
+/** Representative SCP code for a type (drives tier/descriptor lookups). */
+export function primaryCode(t: TypeDef): string {
+  return t.scpCodes[0];
+}
+
+/** Effective difficulty tier for a type. */
+export function typeTier(t: TypeDef): Tier {
+  return t.tier ?? LABELS[primaryCode(t)]?.tier ?? "intermediate";
+}
+
+/** Short factual "why not" phrase for using a type as a distractor. */
+export function typeHint(t: TypeDef): string {
+  return t.distractorHint ?? LABELS[primaryCode(t)]?.descriptor ?? t.name;
 }
 
 // --- Diagnostic-class code groups -------------------------------------------
@@ -635,6 +656,8 @@ export const TYPES: TypeDef[] = [
     summary: "Territorial ST elevation — an acute-injury pattern.",
     answerLabel: "ST-elevation MI (STEMI) pattern",
     confusableWith: ["lbbb", "sinus-rhythm", "lvh"],
+    tier: "advanced",
+    distractorHint: "territorial ST elevation in ≥2 contiguous leads (acute injury)",
     match: (row) => isAcuteMi(row) && hasAny(row, [...MI_CODES, ...INJURY_CODES]),
     lesson: {
       estMinutes: 6,
@@ -670,6 +693,260 @@ export const TYPES: TypeDef[] = [
         "Distribution is regional/territorial (inferior, anterior, lateral)",
         "Hyperacute T waves early; pathological Q waves evolve later",
         "Diagnosis of acute STEMI is clinical — the ECG shows the pattern",
+      ],
+    },
+  },
+
+  // ── Additional data-backed types (round 2 expansion) ─────────────────────
+  {
+    id: "sinus-arrhythmia",
+    name: "Sinus arrhythmia",
+    shortName: "S.Arrh",
+    superclass: "RHYTHM",
+    scpCodes: ["SARRH"],
+    order: 13,
+    summary: "Sinus rhythm that speeds up and slows with breathing.",
+    answerLabel: "Sinus arrhythmia",
+    confusableWith: ["sinus-rhythm", "atrial-fibrillation", "sinus-bradycardia"],
+    leadFocus: "II",
+    tier: "intermediate",
+    match: (row) => has(row, "SARRH") && !hasAny(row, ["AFIB", "AFLT", "PVC", "PAC", "PACE"]),
+    lesson: {
+      estMinutes: 3,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "Sinus arrhythmia is a normal sinus rhythm whose rate varies cyclically, " +
+            "most often with the respiratory cycle — speeding up on inspiration and " +
+            "slowing on expiration. The impulses still originate in the SA node.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Each QRS is preceded by an upright sinus P wave in lead II (as in normal " +
+            "sinus rhythm), but the R–R interval changes gradually and smoothly. The " +
+            "key contrast with atrial fibrillation is that the variation is cyclical " +
+            "and the P waves are normal — not the chaotic, P-less irregularity of AF.",
+        },
+      ],
+      keyFacts: [
+        "Upright sinus P wave before every QRS (as in normal sinus rhythm)",
+        "R–R interval varies cyclically, often with respiration",
+        "Normal P-wave morphology (distinguishes it from AF)",
+        "A common, benign finding, especially in the young",
+      ],
+    },
+  },
+  {
+    id: "pac",
+    name: "Atrial premature complexes",
+    shortName: "PAC",
+    superclass: "RHYTHM",
+    scpCodes: ["PAC"],
+    order: 14,
+    summary: "Early beats from an ectopic atrial focus.",
+    answerLabel: "Atrial premature complex(es)",
+    confusableWith: ["pvc", "atrial-fibrillation", "sinus-rhythm"],
+    leadFocus: "II",
+    tier: "intermediate",
+    match: (row) => has(row, "PAC") && !hasAny(row, ["AFIB", "AFLT", "PACE", "PVC"]),
+    lesson: {
+      estMinutes: 4,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "An atrial premature complex (APC/PAC) is an early beat triggered by an " +
+            "ectopic focus in the atria rather than the SA node. It travels down the " +
+            "normal conduction system, so the QRS is usually narrow.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Look for a P wave that arrives early and has a different shape from the " +
+            "sinus P waves, followed by a normal (narrow) QRS. It is typically " +
+            "followed by an incomplete compensatory pause. Contrast with a PVC, whose " +
+            "early beat is wide and has no preceding P wave.",
+        },
+      ],
+      keyFacts: [
+        "Early P wave of abnormal morphology",
+        "Usually a narrow (normally-conducted) QRS follows",
+        "Often an incomplete compensatory pause",
+        "Narrow QRS + preceding abnormal P distinguishes it from a PVC",
+      ],
+    },
+  },
+  {
+    id: "paced",
+    name: "Paced rhythm",
+    shortName: "Paced",
+    superclass: "RHYTHM",
+    scpCodes: ["PACE"],
+    order: 15,
+    summary: "Pacing spikes driving the atria and/or ventricles.",
+    answerLabel: "Paced rhythm",
+    confusableWith: ["lbbb", "sinus-rhythm", "atrial-fibrillation"],
+    leadFocus: "V1",
+    tier: "intermediate",
+    match: (row) => has(row, "PACE"),
+    lesson: {
+      estMinutes: 4,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "A paced rhythm is generated by an implanted pacemaker. A small, sharp " +
+            "pacing 'spike' precedes the chamber it stimulates — a spike before the P " +
+            "wave for atrial pacing, before the QRS for ventricular pacing, or both.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Find the narrow vertical pacing spikes. Ventricular pacing produces a " +
+            "wide QRS that usually resembles left bundle branch block (the RV lead " +
+            "activates the right ventricle first). Seeing the spike immediately before " +
+            "each wide QRS is the giveaway.",
+        },
+      ],
+      keyFacts: [
+        "Sharp pacing spikes before paced complexes",
+        "Ventricular pacing → wide, LBBB-like QRS",
+        "Atrial pacing → spike before the P wave",
+        "Spikes distinguish pacing from an intrinsic bundle branch block",
+      ],
+    },
+  },
+  {
+    id: "rvh",
+    name: "Right ventricular hypertrophy",
+    shortName: "RVH",
+    superclass: "HYP",
+    scpCodes: ["RVH"],
+    order: 16,
+    summary: "Right-axis deviation with a dominant R in V1.",
+    answerLabel: "Right ventricular hypertrophy",
+    confusableWith: ["lvh", "rbbb", "lafb"],
+    leadFocus: "V1",
+    tier: "advanced",
+    match: (row) =>
+      has(row, "RVH") && !hasAny(row, ["CLBBB", "CRBBB", "AFIB", "AFLT"]) && !isAcuteMi(row),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "Right ventricular hypertrophy is thickened right-ventricular muscle, " +
+            "usually from chronic pressure overload (pulmonary hypertension, pulmonary " +
+            "stenosis, chronic lung disease). The enlarged right ventricle shifts the " +
+            "electrical forces rightward and anteriorly.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Look for right-axis deviation and a dominant R wave in V1 (R greater than " +
+            "S), often with a deep S wave in V6 and right-precordial ST depression / " +
+            "T-wave inversion ('right heart strain'). Signs of right atrial enlargement " +
+            "may accompany it.",
+        },
+      ],
+      keyFacts: [
+        "Right-axis deviation",
+        "Dominant R wave in V1 (R/S > 1)",
+        "Deep S wave in V5–V6",
+        "Right-precordial strain (ST depression / T inversion in V1–V3)",
+      ],
+    },
+  },
+  {
+    id: "lae",
+    name: "Left atrial enlargement",
+    shortName: "LAE",
+    superclass: "HYP",
+    scpCodes: ["LAO/LAE"],
+    order: 17,
+    summary: "Broad, notched P waves — the 'P mitrale'.",
+    answerLabel: "Left atrial enlargement",
+    confusableWith: ["rvh", "lvh", "sinus-rhythm"],
+    leadFocus: "II",
+    tier: "advanced",
+    match: (row) =>
+      has(row, "LAO/LAE") && !hasAny(row, ["AFIB", "AFLT", "PACE"]) && !isAcuteMi(row),
+    lesson: {
+      estMinutes: 4,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "Left atrial enlargement reflects increased left-atrial size or pressure. " +
+            "Because the left atrium depolarises second, its enlargement prolongs and " +
+            "distorts the terminal part of the P wave.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "In lead II the P wave becomes broad (≥120 ms) and notched with two humps " +
+            "('P mitrale'). In V1 the P wave has a deep, wide negative terminal " +
+            "component. Sinus rhythm is otherwise preserved.",
+        },
+      ],
+      keyFacts: [
+        "Broad (≥120 ms), notched P wave in lead II ('P mitrale')",
+        "Deep, wide negative terminal P deflection in V1",
+        "Rhythm is otherwise sinus",
+      ],
+    },
+  },
+  {
+    id: "ischemic-st-t",
+    name: "Ischemic / nonspecific ST–T changes",
+    shortName: "ST–T",
+    superclass: "STTC",
+    scpCodes: ["ISC_", "STD_", "NST_", "NDT", "TAB_", "INVT", "ISCAL", "ISCAS", "ISCAN", "ISCIN", "ISCIL", "ISCLA"],
+    order: 18,
+    summary: "ST-segment and T-wave changes suggesting ischemia.",
+    answerLabel: "Ischemic ST–T changes",
+    confusableWith: ["stemi", "lvh", "sinus-rhythm"],
+    leadFocus: "V5",
+    tier: "advanced",
+    distractorHint: "ST depression and/or T-wave changes (ischemic or nonspecific), without acute ST elevation",
+    match: (row) =>
+      hasAny(row, ["ISC_", "STD_", "ISCAL", "ISCAS", "ISCAN", "ISCIN", "ISCIL", "ISCLA"]) &&
+      !isAcuteMi(row) &&
+      !hasAny(row, ["AFIB", "AFLT", "PACE", "CLBBB", "CRBBB", "LVH"]),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "Ischemia that has not (or not yet) produced ST elevation still leaves a " +
+            "signature on the ST segment and T wave. These changes are more subtle than " +
+            "a STEMI and are read together with the clinical picture.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Look for horizontal or down-sloping ST depression and T-wave inversion, " +
+            "grouped in a regional set of leads (e.g. the lateral or inferior group). " +
+            "Unlike STEMI there is no territorial ST elevation. The changes may be " +
+            "described as 'ischemic' when regional, or 'nonspecific' when scattered.",
+        },
+        {
+          heading: "A caution",
+          body:
+            "ST–T changes are among the least specific ECG findings — they occur with " +
+            "ischemia but also with strain, drugs, electrolyte shifts and many other " +
+            "conditions. Interpret them in context, never in isolation.",
+        },
+      ],
+      keyFacts: [
+        "Horizontal/down-sloping ST depression",
+        "T-wave inversion, often regional",
+        "No territorial ST elevation (distinguishes from STEMI)",
+        "Nonspecific — many non-ischemic causes; correlate clinically",
       ],
     },
   },

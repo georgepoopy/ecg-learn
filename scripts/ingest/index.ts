@@ -1,15 +1,14 @@
 /**
- * PTB-XL ingestion pipeline.
+ * PTB-XL ingestion pipeline (round-2 generator).
  *
- *   1. Parse ptbxl_database.csv (+ scp_statements.csv, already encoded in the
- *      curated taxonomy).
- *   2. Assign each record to a curated ECG type when its labels match cleanly.
- *   3. Take a balanced, deterministic sample per type.
- *   4. Read each sampled record's 12-lead signal from the source zip and store
- *      it (raw Int16 base64 + gain/leads) — a faithful copy of the waveform.
- *   5. Author an identification question per record, distractors drawn from
- *      sibling type labels.
- *   6. Seed SQLite via Prisma.
+ *   1. Parse ptbxl_database.csv.
+ *   2. Assign each record to a curated ECG type (first-match, disjoint buckets).
+ *   3. For a balanced sample per type, read the 12-lead signal from the zip,
+ *      downsample to 250 Hz (deploy-friendly, visually lossless at 25 mm/s),
+ *      compute rate/axis features, and generate a varied, tiered, deduped set of
+ *      questions (see generate.ts).
+ *   4. Balance question kinds per type so the bank isn't all "identify".
+ *   5. Seed the database via Prisma.
  *
  * Run: `npm run ingest`
  */
@@ -18,20 +17,15 @@ import path from "node:path";
 import { parse } from "csv-parse/sync";
 import { PrismaClient } from "@prisma/client";
 import { ZipReader, readRecord } from "./wfdb";
-import {
-  TYPES,
-  TYPES_BY_ID,
-  MI_TERRITORY,
-  MI_CODES,
-  type PtbRow,
-  type ScpMap,
-} from "./taxonomy";
+import { TYPES, typeTier, type PtbRow, type ScpMap } from "./taxonomy";
+import { TIER_RANK } from "./labels";
+import { decodeLeads } from "./features";
+import { generateForRecord, type GenQuestion } from "./generate";
 
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const DATA_DIR = path.join(PROJECT_ROOT, "data", "ptb-xl");
 const CSV_PATH = path.join(DATA_DIR, "ptbxl_database.csv");
 
-// The full waveform archive lives in the source zip alongside the project.
 const ZIP_PATH = path.resolve(
   PROJECT_ROOT,
   "..",
@@ -41,12 +35,22 @@ const ZIP_PATH = path.resolve(
 const ZIP_INNER_PREFIX =
   "ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.3/";
 
-/** How many records (→ questions) to build per type in this pass. */
-const PER_TYPE = 30;
-/** Deterministic seed so the bank is stable across runs. */
-const SEED = 20260712;
+/** How many records to consider per type. */
+const RECORDS_PER_TYPE = 90;
+/** Downsample factor from 500 Hz → 250 Hz. */
+const DS_FACTOR = 2;
+/** Per-type cap on each question kind, to keep the bank varied. */
+const KIND_CAP: Record<string, number> = {
+  identify: 30,
+  "which-finding": 22,
+  rate: 22,
+  axis: 14,
+  territory: 20,
+  lead: 12,
+};
+const SEED = 20260713;
 
-// --- tiny deterministic PRNG (mulberry32) -----------------------------------
+// --- deterministic PRNG ------------------------------------------------------
 function mulberry32(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -68,14 +72,11 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** Parse the Python-dict-ish scp_codes string into a { code: likelihood } map. */
 function parseScp(raw: string): ScpMap {
   const map: ScpMap = {};
   const re = /'([^']+)'\s*:\s*([0-9.]+)/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(raw)) !== null) {
-    map[m[1]] = parseFloat(m[2]);
-  }
+  while ((m = re.exec(raw)) !== null) map[m[1]] = parseFloat(m[2]);
   return map;
 }
 
@@ -101,35 +102,16 @@ function loadRows(): PtbRow[] {
   }));
 }
 
-/** Build an explanation string for a record, factual and type-specific. */
-function buildExplanation(typeId: string, row: PtbRow): string {
-  const t = TYPES_BY_ID[typeId];
-  const facts = t.lesson.keyFacts.join("; ");
-  if (typeId === "stemi") {
-    const loc = MI_CODES.filter((c) => c in row.scp)
-      .map((c) => MI_TERRITORY[c])
-      .filter(Boolean);
-    const where = loc.length ? ` The labelled territory here is ${loc.join("/")}.` : "";
-    return (
-      `This tracing carries an acute-stage infarction pattern (${t.name}).${where} ` +
-      `Look for: ${facts}.`
-    );
+/** Downsample interleaved Int16 frames by `factor`. */
+function downsample(rawDat: Buffer, nSig: number, nSamplesIn: number, factor: number) {
+  const nOut = Math.floor(nSamplesIn / factor);
+  const frameBytes = nSig * 2;
+  const out = Buffer.alloc(nOut * frameBytes);
+  for (let i = 0; i < nOut; i++) {
+    const src = i * factor * frameBytes;
+    rawDat.copy(out, i * frameBytes, src, src + frameBytes);
   }
-  return `This is ${t.name}. Look for: ${facts}.`;
-}
-
-/** Assemble 4 MCQ options (correct + 3 sibling labels), return options+correctId. */
-function buildOptions(typeId: string) {
-  const t = TYPES_BY_ID[typeId];
-  const distractors = t.confusableWith
-    .map((id) => TYPES_BY_ID[id])
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((d) => d.answerLabel);
-  const labels = shuffle([t.answerLabel, ...distractors]);
-  const options = labels.map((label, i) => ({ id: String.fromCharCode(97 + i), label }));
-  const correctOptionId = options.find((o) => o.label === t.answerLabel)!.id;
-  return { options, correctOptionId };
+  return { buf: out, nSamples: nOut };
 }
 
 async function main() {
@@ -137,8 +119,7 @@ async function main() {
   const rows = loadRows();
   console.log(`  ${rows.length} records.`);
 
-  // Assign records to types. A record can match multiple predicates; assign to
-  // the first (lowest-order) matching type to keep examples clean and disjoint.
+  // First-match disjoint buckets (array order = match priority).
   const buckets = new Map<string, PtbRow[]>(TYPES.map((t) => [t.id, []]));
   for (const row of rows) {
     for (const t of TYPES) {
@@ -148,16 +129,10 @@ async function main() {
       }
     }
   }
-  for (const t of TYPES) {
-    console.log(`  ${t.id}: ${buckets.get(t.id)!.length} candidate records`);
-  }
 
-  console.log(`→ Opening waveform zip (random access) …`);
-  if (!fs.existsSync(ZIP_PATH)) {
-    throw new Error(`PTB-XL zip not found at ${ZIP_PATH}`);
-  }
+  console.log("→ Opening waveform zip (random access) …");
+  if (!fs.existsSync(ZIP_PATH)) throw new Error(`PTB-XL zip not found at ${ZIP_PATH}`);
   const zip = await ZipReader.open(ZIP_PATH);
-
   const prisma = new PrismaClient();
 
   console.log("→ Resetting content tables …");
@@ -170,9 +145,9 @@ async function main() {
   await prisma.ecgType.deleteMany();
 
   let totalQuestions = 0;
+  const kindTotals: Record<string, number> = {};
 
   for (const t of TYPES) {
-    // Insert the type + lesson.
     await prisma.ecgType.create({
       data: {
         id: t.id,
@@ -182,6 +157,7 @@ async function main() {
         scpCodes: JSON.stringify(t.scpCodes),
         summary: t.summary,
         order: t.order,
+        tier: typeTier(t),
         lesson: {
           create: {
             estMinutes: t.lesson.estMinutes,
@@ -192,60 +168,81 @@ async function main() {
       },
     });
 
-    const candidates = shuffle(buckets.get(t.id)!);
+    const candidates = shuffle(buckets.get(t.id)!).slice(0, RECORDS_PER_TYPE * 2);
+    const kindCount: Record<string, number> = {};
+    let recordsProcessed = 0;
     let made = 0;
 
     for (const row of candidates) {
-      if (made >= PER_TYPE) break;
-      const stem = ZIP_INNER_PREFIX + row.filenameHr; // e.g. .../00001_hr
+      if (recordsProcessed >= RECORDS_PER_TYPE) break;
+      const stem = ZIP_INNER_PREFIX + row.filenameHr;
       let decoded;
       try {
         decoded = await readRecord(zip, stem);
-      } catch (err) {
-        console.warn(`  ! skip ${row.ecgId}: ${(err as Error).message}`);
+      } catch {
         continue;
       }
+      recordsProcessed++;
+
+      // Features from full-resolution signal; store the downsampled copy.
+      const sig = decodeLeads(decoded.rawDat, decoded.leads, decoded.gain, decoded.fs, decoded.nSamples);
+      const ds = downsample(decoded.rawDat, decoded.leads.length, decoded.nSamples, DS_FACTOR);
+
+      const generated = generateForRecord(t, row, sig, rand);
+      const keep: GenQuestion[] = [];
+      for (const q of generated) {
+        const cap = KIND_CAP[q.kind] ?? 15;
+        if ((kindCount[q.kind] ?? 0) >= cap) continue;
+        keep.push(q);
+        kindCount[q.kind] = (kindCount[q.kind] ?? 0) + 1;
+      }
+      if (keep.length === 0) continue;
 
       const recordId = `ptbxl-${row.ecgId}`;
       await prisma.record.create({
         data: {
           id: recordId,
           ecgId: row.ecgId,
-          fs: decoded.fs,
-          nSamples: decoded.nSamples,
+          fs: Math.round(decoded.fs / DS_FACTOR),
+          nSamples: ds.nSamples,
           gain: decoded.gain,
           leads: JSON.stringify(decoded.leads),
-          signalsB64: decoded.rawDat.toString("base64"),
+          signalsB64: ds.buf.toString("base64"),
           ptbReport: row.report || null,
         },
       });
 
-      const { options, correctOptionId } = buildOptions(t.id);
-      await prisma.question.create({
-        data: {
-          typeId: t.id,
-          recordId,
-          stem: "Identify the rhythm or diagnosis shown in this 12-lead ECG.",
-          options: JSON.stringify(options),
-          correctOptionId,
-          explanation: buildExplanation(t.id, row),
-          difficulty: 1,
-          leadFocus: t.leadFocus ?? null,
-        },
-      });
-
-      made++;
-      totalQuestions++;
+      for (const q of keep) {
+        await prisma.question.create({
+          data: {
+            typeId: t.id,
+            recordId,
+            kind: q.kind,
+            tier: q.tier,
+            stem: q.stem,
+            options: JSON.stringify(q.options),
+            correctOptionId: q.correctOptionId,
+            explanation: q.explanation,
+            difficulty: TIER_RANK[q.tier],
+            labels: JSON.stringify(q.labels),
+            leadFocus: q.leadFocus,
+          },
+        });
+        kindTotals[q.kind] = (kindTotals[q.kind] ?? 0) + 1;
+        made++;
+        totalQuestions++;
+      }
     }
-    console.log(`  ✓ ${t.id}: ${made} questions`);
+    console.log(`  ✓ ${t.id.padEnd(22)} ${made} questions from ${recordsProcessed} records`);
   }
 
-  // Ensure a single local user exists.
   await prisma.user.upsert({ where: { id: "local" }, update: {}, create: { id: "local" } });
 
   zip.close();
   await prisma.$disconnect();
-  console.log(`\n✔ Ingest complete: ${TYPES.length} types, ${totalQuestions} questions.`);
+
+  console.log("\n  by kind: " + Object.entries(kindTotals).map(([k, v]) => `${k}=${v}`).join("  "));
+  console.log(`✔ Ingest complete: ${TYPES.length} types, ${totalQuestions} questions.`);
 }
 
 main().catch((err) => {

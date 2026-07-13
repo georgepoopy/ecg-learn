@@ -120,16 +120,22 @@ export default function Quiz({
 
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{current.stem}</p>
 
-      <EcgViewer
-        key={current.questionId}
-        signalsB64={current.record.signalsB64}
-        leadOrder={current.record.leadOrder}
-        gain={current.record.gain}
-        fs={current.record.fs}
-        nSamples={current.record.nSamples}
-        defaultHighlight={result ? current.leadFocus : null}
-        caption={`PTB-XL record #${current.record.ecgId}`}
-      />
+      {current.record ? (
+        <EcgViewer
+          key={current.questionId}
+          signalsB64={current.record.signalsB64}
+          leadOrder={current.record.leadOrder}
+          gain={current.record.gain}
+          fs={current.record.fs}
+          nSamples={current.record.nSamples}
+          defaultHighlight={result ? current.leadFocus : null}
+          caption={`PTB-XL record #${current.record.ecgId}`}
+        />
+      ) : (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+          Concept question — no tracing. Answer from the described criteria.
+        </div>
+      )}
 
       {/* Options */}
       <div className="grid gap-2 sm:grid-cols-2">

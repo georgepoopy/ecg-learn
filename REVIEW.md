@@ -9,6 +9,57 @@ Status key: 🔲 unreviewed · ✅ verified · ✏️ needs edit
 
 ---
 
+## Round 2 — expanded generator (items 13–17)
+
+### 13. 🔲 Computed ventricular-rate questions
+**Where:** `scripts/ingest/features.ts` `estimateRate`, used by `generate.ts` `tRate`.
+**Decision made:** Rate is measured by a simple R-peak detector (rectified,
+baseline-corrected lead II, threshold + refractory period), taking the median
+R–R. A rate question is emitted **only** when the detector is confident, the
+rhythm is regular, and the value is **consistent with any PTB-XL rate label**
+(SBRAD ⇒ <60, STACH ⇒ >100, otherwise 55–105 for NORM/SR). Answer is rounded to
+5 bpm. Ingest self-check reported 0/362 inconsistent.
+**Why review:** the detector is intentionally simple; confirm the ±5 bpm rounding
+and the option spread (±20/±40) are acceptable, and that measuring from lead II
+is fine. Irregular rhythms (AF) never get a single-value rate question.
+
+### 14. 🔲 Computed QRS-axis questions
+**Where:** `features.ts` `estimateAxis`, `generate.ts` `tAxis`.
+**Decision made:** Axis quadrant is inferred from the sign of the mean net QRS
+deflection in leads I and aVF around detected R peaks. A question is emitted only
+when confident AND the computed quadrant **agrees with PTB-XL's `heart_axis`**
+column (when that column is populated). Four-quadrant answer only (normal / LAD /
+RAD / extreme), not degrees.
+**Why review:** confirm the four-quadrant simplification and the net-deflection
+method are acceptable for teaching; borderline axes are the main risk (mitigated
+by the label cross-check and a confidence threshold).
+
+### 15. 🔲 "Which finding is present?" relies on PTB-XL label completeness
+**Where:** `generate.ts` `tWhichFinding`.
+**Decision made:** The correct option is a finding **labelled present** on the
+record (other than the type's own primary label, so it tests a *concurrent*
+finding); distractors are findings **not labelled** on the record. The
+explanation says the distractors are "not present."
+**Why review:** this assumes PTB-XL's labels are complete — i.e. an unlabelled
+finding is truly absent. If a distractor finding were present but unlabelled, the
+"not present" claim would be wrong. Confirm this assumption is acceptable, or we
+should soften the wording to "not among the labelled findings."
+
+### 16. 🔲 Infarct-territory questions
+**Where:** `generate.ts` `tTerritory` (restricted to MI-superclass records).
+**Decision made:** Territory (inferior/anterior/anteroseptal/lateral/posterior)
+is taken from the MI location code; the explanation cites the standard lead group.
+**Why review:** confirm the lead-group → territory mapping used in explanations.
+
+### 17. 🔲 Difficulty-tier assignments
+**Where:** `scripts/ingest/labels.ts` (`tier` per SCP code).
+**Decision made:** Every SCP code is tagged foundational/intermediate/advanced/
+expert. This is a pedagogical ordering choice, not a clinical fact.
+**Why review:** sanity-check the tiering (e.g. WPW/DIG/LNGQT = expert; bundle
+branch blocks = intermediate; specific MI territories = advanced).
+
+---
+
 ## Phase 1 — data pipeline & initial curriculum
 
 ### 1. 🔲 "STEMI" label derivation from PTB-XL
