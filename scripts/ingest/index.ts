@@ -42,7 +42,7 @@ const ZIP_INNER_PREFIX =
   "ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.3/";
 
 /** How many records (→ questions) to build per type in this pass. */
-const PER_TYPE = 24;
+const PER_TYPE = 30;
 /** Deterministic seed so the bank is stable across runs. */
 const SEED = 20260712;
 

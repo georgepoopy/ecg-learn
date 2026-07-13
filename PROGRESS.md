@@ -195,3 +195,54 @@ dashboard (animated stats + bars). All motion is `motion-safe:` gated.
 
 ### Notes
 - No new medical content changed in this phase — purely presentation/interaction.
+
+---
+
+## Phase 5 — Scale the curriculum ✅ (awaiting your review)
+
+Grew the curriculum from **4 → 12 types** and the bank from **96 → 360 questions**,
+all auto-generated from PTB-XL. Everything uncertain went to `REVIEW.md`.
+
+### New curriculum (12 types, 5 modules)
+| Module | Types |
+|--------|-------|
+| Foundations | Normal sinus rhythm |
+| Rhythm | Sinus bradycardia, Sinus tachycardia, Atrial fibrillation, Atrial flutter, Ventricular premature complexes |
+| Conduction | First-degree AV block, RBBB, LBBB, LAFB |
+| Chambers & hypertrophy | Left ventricular hypertrophy |
+| Ischemia & infarction | STEMI (pattern) |
+
+Each type: an **originally-authored lesson** (sections + identifying criteria) and
+**30 questions** on real PTB-XL waveforms. Distractors are same-module confusables
+(e.g. RBBB vs LBBB vs LAFB vs 1° AVB; AF vs flutter vs sinus tachy).
+
+### Selection refinements (to keep examples clean)
+- Rhythm types are **mutually exclusive** (a record can't be both AF and sinus tachy).
+- Conduction/chamber types **exclude AF/flutter and acute-MI records**, so the
+  primary teaching feature is unambiguous. LBBB/LVH also exclude acute-stage MI so
+  a real STEMI is never mislabelled.
+- First-match disjoint bucketing (lowest `order` wins) keeps buckets non-overlapping.
+
+### UX
+- Curriculum home now **groups types into modules** with per-module progress
+  (e.g. "2/6"), keeping the sequential unlock order intact.
+
+### Verified in-browser (all types unlocked via a dev script, then reset)
+- Curriculum renders 5 modules / 12 types in order.
+- NSR question → rhythm-module distractors; RBBB question → conduction-module
+  distractors; RBBB graded correct with its authored explanation (rSR′, slurred S,
+  etc.). Waveforms decode to physiological amplitudes. Build clean; 360 records.
+
+### Candidate pool sizes (PTB-XL)
+NSR 7060 · S.Brady 635 · S.Tachy 821 · AF 1497 · **Flutter 73** · PVC 842 ·
+1° AVB 633 · RBBB 323 · LBBB 308 · LAFB 1054 · LVH 1368 · STEMI 159.
+Atrial flutter is the smallest pool (73) but still fills a 30-question bank.
+
+### ⚠️ For your review — see `REVIEW.md` items 6–12
+PVC-as-finding-not-rhythm, LVH voltage-criteria choice, LBBB-masks-MI caveat,
+LAFB axis criteria, complete-vs-incomplete blocks, brady/tachy thresholds, and
+flutter rate/conduction statements — all handled conservatively, all flagged.
+
+### Dev utilities
+- `scripts/dev-unlock-all.ts` — unlock every type locally (for testing practice).
+- `npm run progress:reset` — clear progress, keep content.

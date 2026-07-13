@@ -5,6 +5,9 @@
  * Nothing here is scraped. Lesson facts are standard, settled ECG criteria
  * (rate/rhythm/interval/morphology). Anything ambiguous is flagged in REVIEW.md
  * rather than asserted.
+ *
+ * Types are grouped into modules by `superclass`:
+ *   NORM (Foundations) · RHYTHM · CD (Conduction) · HYP (Chambers) · MI (Ischemia)
  */
 
 /** PTB-XL scp_codes is a map { CODE: likelihood(0..100) }. */
@@ -37,23 +40,22 @@ export interface TypeDef {
   shortName: string;
   /** NORM | RHYTHM | CD | MI | STTC | HYP */
   superclass: string;
-  /** PTB-XL SCP codes conceptually belonging to this type. */
   scpCodes: string[];
   order: number;
-  /** Short teaser shown on the curriculum map. */
   summary: string;
-  /** Answer label shown as the correct MCQ option. */
   answerLabel: string;
-  /** Preferred confusable type ids for distractors (best-first). */
   confusableWith: string[];
-  /** Optional lead to spotlight in the renderer for this type. */
   leadFocus?: string;
-  /** Does this record qualify as a clean teaching example of this type? */
   match: (row: PtbRow) => boolean;
   lesson: LessonContent;
 }
 
-// --- Diagnostic-class code groups (from scp_statements.csv) ------------------
+// --- Diagnostic-class code groups -------------------------------------------
+
+/** Primary rhythm statements — used to keep rhythm examples mutually exclusive. */
+export const PRIMARY_RHYTHM = [
+  "SR", "SBRAD", "STACH", "SARRH", "AFIB", "AFLT", "SVARR", "SVTAC", "PSVT", "PACE",
+];
 
 /** Rhythm codes other than plain sinus rhythm — presence means "not clean SR". */
 export const NON_SINUS_RHYTHM = [
@@ -61,39 +63,31 @@ export const NON_SINUS_RHYTHM = [
   "BIGU", "TRIGU", "PACE", "PVC", "PAC", "PRC(S)",
 ];
 
-/** All abnormal *diagnostic* subclass codes (MI / STTC / CD / HYP). Presence
- * disqualifies a record from being a "normal sinus rhythm" example. */
+/** All abnormal *diagnostic* subclass codes (MI / STTC / CD / HYP). */
 export const ABNORMAL_DIAGNOSTIC = [
-  // MI
   "IMI", "ASMI", "ILMI", "AMI", "ALMI", "INJAS", "LMI", "IPLMI", "IPMI",
   "INJAL", "INJIN", "INJLA", "PMI", "INJIL", "ANEUR",
-  // STTC
   "NDT", "NST_", "DIG", "LNGQT", "ISC_", "ISCAL", "ISCIN", "ISCIL", "ISCAS",
   "ISCLA", "ISCAN", "STD_", "STE_", "TAB_", "INVT", "LOWT", "NT_", "EL",
-  // CD (conduction)
   "LAFB", "IRBBB", "CRBBB", "CLBBB", "ILBBB", "LPFB", "IVCD", "WPW", "3AVB",
   "2AVB", "1AVB",
-  // HYP
   "LVH", "RVH", "LAO/LAE", "RAO/RAE", "SEHYP", "VCLVH", "HVOLT", "LVOLT",
 ];
 
-/** MI diagnostic subclass codes (location statements). */
 export const MI_CODES = [
   "IMI", "ASMI", "ILMI", "AMI", "ALMI", "LMI", "IPLMI", "IPMI", "PMI",
 ];
-
-/** Codes indicating acute injury current / ST-elevation. */
 export const INJURY_CODES = ["INJAS", "INJAL", "INJIN", "INJLA", "INJIL", "STE_"];
-
-/** Infarction stages that correspond to the acute / recent (ST-elevation) phase. */
 export const ACUTE_STADIA = new Set(["Stadium I", "Stadium I-II", "Stadium II"]);
 
 const has = (row: PtbRow, code: string) => code in row.scp;
 const hasAny = (row: PtbRow, codes: string[]) => codes.some((c) => c in row.scp);
+const isAcuteMi = (row: PtbRow) => ACUTE_STADIA.has(row.infarctionStadium1);
 
 // --- The curated types -------------------------------------------------------
 
 export const TYPES: TypeDef[] = [
+  // ── Foundations ──────────────────────────────────────────────────────────
   {
     id: "sinus-rhythm",
     name: "Normal sinus rhythm",
@@ -103,10 +97,8 @@ export const TYPES: TypeDef[] = [
     order: 1,
     summary: "The healthy baseline: SA-node rhythm, everything in range.",
     answerLabel: "Normal sinus rhythm",
-    confusableWith: ["afib", "first-degree-av-block", "stemi"],
+    confusableWith: ["sinus-bradycardia", "sinus-tachycardia", "atrial-fibrillation"],
     leadFocus: "II",
-    // Clean normal: sinus rhythm, labelled normal ECG, no abnormal diagnostic
-    // statements and no non-sinus rhythm annotations.
     match: (row) =>
       has(row, "SR") &&
       (row.scp["NORM"] ?? 0) >= 80 &&
@@ -128,9 +120,7 @@ export const TYPES: TypeDef[] = [
           body:
             "Confirm four things: (1) a rate of 60–100 bpm, (2) regular R–R " +
             "intervals, (3) one upright P wave before every QRS in lead II, and " +
-            "(4) normal intervals — PR 120–200 ms and QRS under 120 ms. If all four " +
-            "hold and no abnormal ST/T or hypertrophy features are present, it is a " +
-            "normal sinus tracing.",
+            "(4) normal intervals — PR 120–200 ms and QRS under 120 ms.",
         },
         {
           heading: "Why the P wave in lead II matters",
@@ -150,16 +140,108 @@ export const TYPES: TypeDef[] = [
     },
   },
 
+  // ── Rhythm ───────────────────────────────────────────────────────────────
   {
-    id: "afib",
+    id: "sinus-bradycardia",
+    name: "Sinus bradycardia",
+    shortName: "S.Brady",
+    superclass: "RHYTHM",
+    scpCodes: ["SBRAD"],
+    order: 2,
+    summary: "Sinus rhythm, just slow — under 60 bpm.",
+    answerLabel: "Sinus bradycardia",
+    confusableWith: ["sinus-rhythm", "sinus-tachycardia", "first-degree-av-block"],
+    leadFocus: "II",
+    match: (row) => has(row, "SBRAD") && !hasAny(row, ["AFIB", "AFLT", "STACH", "PACE"]),
+    lesson: {
+      estMinutes: 3,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "Sinus bradycardia is a normal sinus rhythm running slower than 60 bpm. " +
+            "The impulse still originates in the SA node and conducts normally — " +
+            "there are just fewer beats per minute.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Every QRS is preceded by an upright sinus P wave in lead II, the rhythm " +
+            "is regular, intervals are normal, and the rate is below 60. The only " +
+            "difference from normal sinus rhythm is the slower rate.",
+        },
+        {
+          heading: "Context",
+          body:
+            "It is often benign — common in athletes and during sleep — but can also " +
+            "result from medications (beta-blockers), high vagal tone, or sinus-node " +
+            "disease. The ECG pattern is the same regardless of cause.",
+        },
+      ],
+      keyFacts: [
+        "Rate < 60 bpm",
+        "Upright sinus P wave before every QRS in lead II",
+        "Regular R–R intervals",
+        "Normal PR and QRS — only the rate is abnormal",
+      ],
+    },
+  },
+  {
+    id: "sinus-tachycardia",
+    name: "Sinus tachycardia",
+    shortName: "S.Tachy",
+    superclass: "RHYTHM",
+    scpCodes: ["STACH"],
+    order: 3,
+    summary: "Sinus rhythm, sped up — over 100 bpm.",
+    answerLabel: "Sinus tachycardia",
+    confusableWith: ["sinus-rhythm", "sinus-bradycardia", "atrial-fibrillation"],
+    leadFocus: "II",
+    match: (row) => has(row, "STACH") && !hasAny(row, ["AFIB", "AFLT", "SBRAD", "PACE"]),
+    lesson: {
+      estMinutes: 3,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "Sinus tachycardia is a normal sinus rhythm faster than 100 bpm. It is " +
+            "almost always a response to a physiological demand — fever, exertion, " +
+            "pain, anxiety, dehydration, or anaemia — rather than a primary rhythm " +
+            "problem.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Look for an upright sinus P wave before every QRS in lead II, a regular " +
+            "rhythm, and a rate above 100. At faster rates the P wave can blend into " +
+            "the preceding T wave, so inspect the T–P segment carefully.",
+        },
+        {
+          heading: "Distinguishing it",
+          body:
+            "Onset and offset are gradual, and the rate tracks the underlying cause. " +
+            "This contrasts with re-entrant supraventricular tachycardias, which " +
+            "start and stop abruptly and are typically faster and P-wave-less.",
+        },
+      ],
+      keyFacts: [
+        "Rate > 100 bpm",
+        "Upright sinus P wave before every QRS in lead II",
+        "Regular rhythm with gradual onset/offset",
+        "Usually secondary to a physiological stressor",
+      ],
+    },
+  },
+  {
+    id: "atrial-fibrillation",
     name: "Atrial fibrillation",
     shortName: "AF",
     superclass: "RHYTHM",
     scpCodes: ["AFIB"],
-    order: 2,
+    order: 4,
     summary: "Irregularly irregular, with no true P waves.",
     answerLabel: "Atrial fibrillation",
-    confusableWith: ["sinus-rhythm", "first-degree-av-block", "stemi"],
+    confusableWith: ["atrial-flutter", "sinus-rhythm", "sinus-tachycardia"],
     leadFocus: "II",
     match: (row) => has(row, "AFIB") && !has(row, "AFLT"),
     lesson: {
@@ -176,18 +258,17 @@ export const TYPES: TypeDef[] = [
         {
           heading: "How to recognise it",
           body:
-            "Two features define it on the surface ECG: there are no discrete P " +
-            "waves — the baseline is flat or shows fine/coarse fibrillatory waves — " +
-            "and the R–R intervals are irregularly irregular, following no repeating " +
-            "pattern. The QRS complexes themselves are usually normal in width.",
+            "Two features define it: there are no discrete P waves — the baseline is " +
+            "flat or shows fine/coarse fibrillatory waves — and the R–R intervals are " +
+            "irregularly irregular, following no repeating pattern. The QRS complexes " +
+            "are usually normal in width.",
         },
         {
           heading: "Rate vs. rhythm",
           body:
             "The ventricular rate can be slow, normal, or fast; rate does not define " +
             "AF. What defines it is the absence of organised atrial activity plus the " +
-            "irregular ventricular response. Contrast this with atrial flutter, which " +
-            "has organised saw-tooth flutter waves and is often regular.",
+            "irregular ventricular response.",
         },
       ],
       keyFacts: [
@@ -198,19 +279,121 @@ export const TYPES: TypeDef[] = [
       ],
     },
   },
+  {
+    id: "atrial-flutter",
+    name: "Atrial flutter",
+    shortName: "Flutter",
+    superclass: "RHYTHM",
+    scpCodes: ["AFLT"],
+    order: 5,
+    summary: "Organised saw-tooth flutter waves at ~300/min.",
+    answerLabel: "Atrial flutter",
+    confusableWith: ["atrial-fibrillation", "sinus-tachycardia", "sinus-rhythm"],
+    leadFocus: "II",
+    match: (row) => has(row, "AFLT"),
+    lesson: {
+      estMinutes: 4,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "Atrial flutter is an organised re-entrant circuit in the atria, usually " +
+            "cycling around the right atrium at about 250–350 bpm. Because it is " +
+            "organised (unlike fibrillation), it produces uniform, repeating atrial " +
+            "waves.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Look for a saw-tooth baseline of flutter (F) waves, classically negative " +
+            "and best seen in the inferior leads II, III and aVF. The AV node conducts " +
+            "only a fraction of the impulses, often at a fixed ratio (2:1, 3:1), so " +
+            "the ventricular rate is frequently regular — a 2:1 block gives the " +
+            "characteristic ~150 bpm.",
+        },
+        {
+          heading: "Flutter vs. fibrillation",
+          body:
+            "Flutter is organised and often regular with visible saw-tooth waves; " +
+            "fibrillation is chaotic and irregularly irregular with no discrete atrial " +
+            "waves. When the ventricular rate is a suspiciously steady ~150, look hard " +
+            "for hidden flutter waves.",
+        },
+      ],
+      keyFacts: [
+        "Saw-tooth flutter (F) waves, best seen in II, III, aVF",
+        "Atrial rate ~250–350 bpm",
+        "Often a regular ventricular response at a fixed ratio (e.g. 2:1 ≈ 150 bpm)",
+        "More organised than atrial fibrillation",
+      ],
+    },
+  },
+  {
+    id: "pvc",
+    name: "Ventricular premature complexes",
+    shortName: "PVC",
+    superclass: "RHYTHM",
+    scpCodes: ["PVC"],
+    order: 6,
+    summary: "Early, wide, bizarre beats from a ventricular focus.",
+    answerLabel: "Ventricular premature complex(es)",
+    confusableWith: ["atrial-fibrillation", "atrial-flutter", "sinus-rhythm"],
+    leadFocus: "II",
+    match: (row) => has(row, "PVC") && !hasAny(row, ["AFIB", "AFLT", "PACE"]),
+    lesson: {
+      estMinutes: 4,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "A ventricular premature complex (PVC) is an extra beat arising from an " +
+            "ectopic focus in the ventricles. Because it bypasses the normal " +
+            "conduction system, it depolarises the ventricles slowly and abnormally.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Find a QRS that comes early and looks wide and bizarre compared with the " +
+            "patient's normal beats. It is not preceded by a P wave, its T wave points " +
+            "opposite to the QRS, and it is usually followed by a compensatory pause " +
+            "before the underlying rhythm resumes.",
+        },
+        {
+          heading: "What to note",
+          body:
+            "PVCs are ectopic beats superimposed on an underlying rhythm, not a " +
+            "sustained rhythm in themselves. Isolated PVCs are common and often " +
+            "benign; describing their frequency and pattern (e.g. bigeminy) is part " +
+            "of a full read.",
+        },
+      ],
+      keyFacts: [
+        "Premature, wide (> 120 ms), bizarre QRS",
+        "No preceding P wave",
+        "T wave opposite in direction to the QRS",
+        "Often followed by a compensatory pause",
+        "Underlying rhythm is otherwise intact",
+      ],
+    },
+  },
 
+  // ── Conduction ───────────────────────────────────────────────────────────
   {
     id: "first-degree-av-block",
     name: "First-degree AV block",
     shortName: "1° AVB",
     superclass: "CD",
     scpCodes: ["1AVB"],
-    order: 3,
+    order: 7,
     summary: "Every beat conducts, but the PR interval is long.",
     answerLabel: "First-degree AV block",
-    confusableWith: ["sinus-rhythm", "afib", "stemi"],
+    confusableWith: ["sinus-rhythm", "rbbb", "lbbb"],
     leadFocus: "II",
-    match: (row) => has(row, "1AVB") && !has(row, "2AVB") && !has(row, "3AVB"),
+    match: (row) =>
+      has(row, "1AVB") &&
+      !has(row, "2AVB") &&
+      !has(row, "3AVB") &&
+      !hasAny(row, ["AFIB", "AFLT"]),
     lesson: {
       estMinutes: 4,
       sections: [
@@ -232,36 +415,227 @@ export const TYPES: TypeDef[] = [
         {
           heading: "Why it is 'first-degree'",
           body:
-            "The AV blocks form a ladder. First-degree is pure delay with 1:1 " +
-            "conduction. Second-degree drops some beats (the PR may lengthen until a " +
-            "QRS is missed, or drop suddenly). Third-degree is complete dissociation. " +
-            "Seeing a long but constant PR with no dropped beats places it firmly at " +
-            "first-degree.",
+            "First-degree is pure delay with 1:1 conduction. Second-degree drops some " +
+            "beats; third-degree is complete dissociation. A long but constant PR with " +
+            "no dropped beats places it firmly at first-degree.",
         },
       ],
       keyFacts: [
         "PR interval > 200 ms",
         "PR interval constant from beat to beat",
-        "Every P wave is followed by a QRS (1:1 conduction, no dropped beats)",
-        "Usually an incidental finding on an otherwise sinus tracing",
+        "Every P wave is followed by a QRS (1:1 conduction)",
+        "Usually incidental on an otherwise sinus tracing",
+      ],
+    },
+  },
+  {
+    id: "rbbb",
+    name: "Right bundle branch block",
+    shortName: "RBBB",
+    superclass: "CD",
+    scpCodes: ["CRBBB"],
+    order: 8,
+    summary: "Wide QRS with 'rabbit-ear' rSR′ in V1.",
+    answerLabel: "Right bundle branch block",
+    confusableWith: ["lbbb", "lafb", "first-degree-av-block"],
+    leadFocus: "V1",
+    match: (row) =>
+      has(row, "CRBBB") && !has(row, "CLBBB") && !hasAny(row, ["AFIB", "AFLT"]) && !isAcuteMi(row),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "In right bundle branch block the right bundle fails to conduct, so the " +
+            "right ventricle is activated late and slowly through ordinary myocardium " +
+            "after the left ventricle. This widens and distorts the terminal QRS.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Three things together: a QRS of 120 ms or more; an rSR′ (‘M-shaped’, " +
+            "‘rabbit-ear’) complex in V1–V2; and a wide, slurred S wave in the lateral " +
+            "leads I and V6. Secondary T-wave inversion in the right precordial leads " +
+            "is expected and does not by itself indicate ischaemia.",
+        },
+        {
+          heading: "Why V1 is the key lead",
+          body:
+            "V1 sits over the right ventricle, so the late right-ventricular activation " +
+            "shows up there as the characteristic second R wave (R′). Reading V1 first " +
+            "is the quickest way to spot RBBB.",
+        },
+      ],
+      keyFacts: [
+        "QRS ≥ 120 ms",
+        "rSR′ (‘rabbit-ear’) pattern in V1–V2",
+        "Wide, slurred S wave in leads I and V6",
+        "Secondary T-wave inversion in right precordial leads",
+      ],
+    },
+  },
+  {
+    id: "lbbb",
+    name: "Left bundle branch block",
+    shortName: "LBBB",
+    superclass: "CD",
+    scpCodes: ["CLBBB"],
+    order: 9,
+    summary: "Wide QRS with broad monophasic R in I/V6.",
+    answerLabel: "Left bundle branch block",
+    confusableWith: ["rbbb", "lafb", "stemi"],
+    leadFocus: "V6",
+    match: (row) =>
+      has(row, "CLBBB") && !has(row, "CRBBB") && !hasAny(row, ["AFIB", "AFLT"]) && !isAcuteMi(row),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "In left bundle branch block the left bundle fails, so the left ventricle " +
+            "is activated late and abnormally across the septum from the right. This " +
+            "reverses septal activation and broadens the whole QRS.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Look for a QRS of 120 ms or more with a broad, notched or monophasic R " +
+            "wave in the lateral leads I, aVL, V5 and V6, and a dominant downward " +
+            "deflection (QS or rS) in V1. The normal small septal Q waves are lost, and " +
+            "the ST segments and T waves point opposite to the main QRS deflection " +
+            "(appropriate discordance).",
+        },
+        {
+          heading: "A crucial caveat",
+          body:
+            "LBBB changes the QRS and ST-T so much that it can mask or mimic an acute " +
+            "myocardial infarction. A new LBBB in the right clinical setting is treated " +
+            "seriously. This module teaches the LBBB pattern only — never rule an MI in " +
+            "or out from the ECG alone.",
+        },
+      ],
+      keyFacts: [
+        "QRS ≥ 120 ms",
+        "Broad, notched/monophasic R wave in I, aVL, V5–V6",
+        "Dominant S (QS or rS) in V1",
+        "Loss of normal septal Q waves",
+        "ST/T changes discordant to the QRS",
+      ],
+    },
+  },
+  {
+    id: "lafb",
+    name: "Left anterior fascicular block",
+    shortName: "LAFB",
+    superclass: "CD",
+    scpCodes: ["LAFB"],
+    order: 10,
+    summary: "Marked left-axis deviation from a blocked fascicle.",
+    answerLabel: "Left anterior fascicular block",
+    confusableWith: ["rbbb", "lbbb", "lvh"],
+    leadFocus: "aVL",
+    match: (row) =>
+      has(row, "LAFB") && !has(row, "CLBBB") && !hasAny(row, ["AFIB", "AFLT"]) && !isAcuteMi(row),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "The left bundle splits into an anterior and a posterior fascicle. When " +
+            "the anterior fascicle is blocked, the left ventricle is activated in an " +
+            "altered sequence that swings the QRS axis sharply to the left.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "The hallmark is marked left-axis deviation (roughly −45° to −90°): the " +
+            "QRS is positive in I and aVL but negative in II, III and aVF. Look for a " +
+            "small q with a tall R (qR) in aVL and an rS pattern in the inferior leads. " +
+            "Unlike a bundle branch block, the QRS is only minimally widened.",
+        },
+        {
+          heading: "How it differs from LBBB",
+          body:
+            "LAFB shifts the axis but keeps the QRS narrow-ish; LBBB broadens the QRS " +
+            "beyond 120 ms with lateral notched R waves. Axis is the quickest " +
+            "discriminator.",
+        },
+      ],
+      keyFacts: [
+        "Marked left-axis deviation (≈ −45° to −90°)",
+        "qR pattern in I and aVL",
+        "rS pattern in II, III, aVF",
+        "QRS duration < 120 ms (or only slightly prolonged)",
       ],
     },
   },
 
+  // ── Chambers ─────────────────────────────────────────────────────────────
+  {
+    id: "lvh",
+    name: "Left ventricular hypertrophy",
+    shortName: "LVH",
+    superclass: "HYP",
+    scpCodes: ["LVH"],
+    order: 11,
+    summary: "Tall QRS voltages, often with lateral strain.",
+    answerLabel: "Left ventricular hypertrophy",
+    confusableWith: ["lbbb", "lafb", "sinus-rhythm"],
+    leadFocus: "V5",
+    match: (row) =>
+      has(row, "LVH") && !has(row, "CLBBB") && !hasAny(row, ["AFIB", "AFLT"]) && !isAcuteMi(row),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "Left ventricular hypertrophy is thickened left-ventricular muscle, " +
+            "usually from chronic pressure load such as hypertension or aortic " +
+            "stenosis. More muscle generates larger electrical forces, so the QRS " +
+            "voltages grow.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Voltage criteria are the core clue. Common ones: the sum of the S wave in " +
+            "V1 and the R wave in V5 or V6 exceeding 35 mm (Sokolow–Lyon), or an R wave " +
+            "in aVL taller than 11 mm. Advanced LVH often adds a left-axis shift and a " +
+            "‘strain’ pattern — down-sloping ST depression and T-wave inversion in the " +
+            "lateral leads I, aVL, V5 and V6.",
+        },
+        {
+          heading: "A word of caution",
+          body:
+            "Several different voltage criteria exist and they trade sensitivity for " +
+            "specificity; tall voltages can also occur in thin, healthy young people. " +
+            "Voltage alone is suggestive, not diagnostic.",
+        },
+      ],
+      keyFacts: [
+        "High QRS voltages (e.g. S in V1 + R in V5/V6 > 35 mm; R in aVL > 11 mm)",
+        "Often left-axis deviation",
+        "Lateral ‘strain’: ST depression / T inversion in I, aVL, V5–V6",
+        "Voltage criteria are suggestive, not definitive",
+      ],
+    },
+  },
+
+  // ── Ischemia ─────────────────────────────────────────────────────────────
   {
     id: "stemi",
     name: "ST-elevation myocardial infarction (pattern)",
     shortName: "STEMI",
     superclass: "MI",
     scpCodes: [...MI_CODES, ...INJURY_CODES],
-    order: 4,
+    order: 12,
     summary: "Territorial ST elevation — an acute-injury pattern.",
     answerLabel: "ST-elevation MI (STEMI) pattern",
-    confusableWith: ["sinus-rhythm", "afib", "first-degree-av-block"],
-    // Acute/recent infarction stage + a location or injury code present.
-    match: (row) =>
-      ACUTE_STADIA.has(row.infarctionStadium1) &&
-      hasAny(row, [...MI_CODES, ...INJURY_CODES]),
+    confusableWith: ["lbbb", "sinus-rhythm", "lvh"],
+    match: (row) => isAcuteMi(row) && hasAny(row, [...MI_CODES, ...INJURY_CODES]),
     lesson: {
       estMinutes: 6,
       sections: [
@@ -278,7 +652,7 @@ export const TYPES: TypeDef[] = [
           body:
             "Look for ST-segment elevation in two or more anatomically contiguous " +
             "leads, often with reciprocal ST depression in the opposing leads. Early " +
-            "on the T waves may be tall and broad ('hyperacute'); over hours to days " +
+            "on the T waves may be tall and broad (‘hyperacute’); over hours to days " +
             "the ST elevation settles and pathological Q waves can appear.",
         },
         {
@@ -317,3 +691,16 @@ export const MI_TERRITORY: Record<string, string> = {
   LMI: "lateral",
   PMI: "posterior",
 };
+
+/** Module label for a superclass, used to group the curriculum. */
+export const MODULE_LABEL: Record<string, string> = {
+  NORM: "Foundations",
+  RHYTHM: "Rhythm",
+  CD: "Conduction",
+  HYP: "Chambers & hypertrophy",
+  MI: "Ischemia & infarction",
+  STTC: "ST/T changes",
+};
+
+/** Order in which modules appear. */
+export const MODULE_ORDER = ["NORM", "RHYTHM", "CD", "HYP", "MI", "STTC"];
