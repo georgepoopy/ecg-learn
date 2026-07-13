@@ -9,8 +9,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "sqlite" // libSQL is SQLite-compatible (local file in dev, Turso in prod)
+  url      = env("DATABASE_URL")
 }
 
 /// A teachable ECG type (the unit of a lesson + its question bank).
@@ -76,10 +76,13 @@ model Question {
   attempts Attempt[]
 }
 
-/// Single local user (this is a single-user local study app).
+/// An account. Each user has a private bank + progress.
 model User {
-  id        String   @id @default("local")
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String?  @unique
+  name         String?
+  passwordHash String? // bcrypt; null for the legacy/dev "local" user
+  createdAt    DateTime @default(now())
 
   typeProgress   TypeProgress[]
   questionStates QuestionState[]

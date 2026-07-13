@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse } from "csv-parse/sync";
-import { PrismaClient } from "@prisma/client";
+import { makePrisma } from "../db";
 import { ZipReader, readRecord } from "./wfdb";
 import { TYPES, typeTier, type PtbRow, type ScpMap } from "./taxonomy";
 import { TIER_RANK } from "./labels";
@@ -134,7 +134,7 @@ async function main() {
   console.log("→ Opening waveform zip (random access) …");
   if (!fs.existsSync(ZIP_PATH)) throw new Error(`PTB-XL zip not found at ${ZIP_PATH}`);
   const zip = await ZipReader.open(ZIP_PATH);
-  const prisma = new PrismaClient();
+  const prisma = makePrisma();
 
   console.log("→ Resetting content tables …");
   await prisma.attempt.deleteMany();

@@ -375,3 +375,31 @@ modules (incl. Expert patterns) and all 8 new types appear in the library.
 Every authored niche lesson + question (Brugada / Wellens / De Winter /
 hyperkalaemia) is flagged for sign-off before it should be treated as
 authoritative.
+
+## R2 Phase 4 — Hosted DB + auth + deployability ✅
+
+Made the app deployable for real, multi-user hosting.
+
+### Database: Turso / libSQL (via Prisma driver adapter)
+- Chose **libSQL/Turso** over Postgres deliberately: libSQL is SQLite-compatible,
+  so the **same code path** runs locally on a file and in production on Turso —
+  only env vars change. That makes auth + multi-user genuinely testable locally.
+- `src/lib/prisma.ts` builds the client through `@prisma/adapter-libsql`. Local
+  dev (TURSO_* unset) → `./prisma/dev.db`; production → Turso.
+- `scripts/db.ts` gives the ingestion/maintenance scripts the same adapter.
+
+### Auth: Auth.js (NextAuth v5), multi-user
+- Email + password **Credentials** provider (bcrypt), **JWT sessions** (no
+  session tables). Self-contained — no external OAuth setup required.
+- `/signup` + `/signin` pages; sign-out in the nav; the app is gated —
+  `getUserId()` reads the session and redirects unauthenticated users to /signin.
+- Every query/mutation already used `getUserId()` (Phase 2), so each user now has
+  a **private** bank + progress. `User` gained `email`, `name`, `passwordHash`.
+
+### DEPLOY.md + .env.example
+- Step-by-step for **Vercel + Turso**: build the bank locally, `turso db create
+  --from-file ./prisma/dev.db` to ship seeded content, the exact env vars, deploy.
+
+### Scaling note
+Waveforms live in the DB as 250 Hz base64 (lean); DEPLOY.md documents moving
+blobs to object storage at much larger scale.

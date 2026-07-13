@@ -1,8 +1,8 @@
 /** DEV ONLY: unlock every type for the local user (to exercise practice). */
-import { PrismaClient } from "@prisma/client";
+import { makePrisma } from "./db";
 
 async function main() {
-  const prisma = new PrismaClient();
+  const prisma = makePrisma();
   await prisma.user.upsert({ where: { id: "local" }, update: {}, create: { id: "local" } });
   const now = new Date();
   const types = await prisma.ecgType.findMany({ select: { id: true } });

@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import NavLinks from "@/components/NavLinks";
+import { auth } from "@/lib/auth";
+import { signOutAction } from "@/app/auth-actions";
 import "./globals.css";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "ECG Learn",
@@ -19,7 +23,11 @@ const themeScript = `
 }catch(e){}})();
 `;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+  const signedIn = Boolean((session?.user as { id?: string } | undefined)?.id);
+  const email = session?.user?.email ?? undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -44,8 +52,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               ECG&nbsp;Learn
             </Link>
             <div className="flex items-center gap-3">
-              <NavLinks />
-              <ThemeToggle />
+              {signedIn ? (
+                <>
+                  <NavLinks />
+                  <ThemeToggle />
+                  <form action={signOutAction}>
+                    <button
+                      type="submit"
+                      title={email}
+                      className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      Sign out
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <ThemeToggle />
+                  <Link
+                    href="/signin"
+                    className="rounded-md bg-clinical-600 px-3 py-1 text-xs font-medium text-white hover:bg-clinical-700"
+                  >
+                    Sign in
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         </header>

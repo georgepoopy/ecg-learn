@@ -1,8 +1,8 @@
 /** Post-ingest sanity check: counts, kind/tier distribution, sample questions. */
-import { PrismaClient } from "@prisma/client";
+import { makePrisma } from "./db";
 
 async function main() {
-  const prisma = new PrismaClient();
+  const prisma = makePrisma();
 
   const totalQ = await prisma.question.count();
   const totalR = await prisma.record.count();

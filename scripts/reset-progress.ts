@@ -1,8 +1,8 @@
 /** Clear per-user progress (attempts, review states, unlocks) but keep content. */
-import { PrismaClient } from "@prisma/client";
+import { makePrisma } from "./db";
 
 async function main() {
-  const prisma = new PrismaClient();
+  const prisma = makePrisma();
   await prisma.attempt.deleteMany();
   await prisma.questionState.deleteMany();
   await prisma.typeProgress.deleteMany();
