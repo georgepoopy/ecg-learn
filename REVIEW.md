@@ -9,6 +9,42 @@ Status key: 🔲 unreviewed · ✅ verified · ✏️ needs edit
 
 ---
 
+## Round 2 — authored niche/expert content (items 18–21)
+
+These are **originally authored** waveform-free "concept" questions and lessons
+for patterns PTB-XL underrepresents. Written from standard teaching criteria; no
+dataset or copyrighted source used. **All need clinician sign-off before going
+live.** Source: `scripts/ingest/authored.ts`.
+
+### 18. 🔲 Brugada pattern (type `brugada`)
+Lesson + 3 questions: type-1 = coved ST elevation ≥2 mm → negative T in V1–V2;
+leads V1–V2; risk = polymorphic VT/VF/sudden death. **Verify** the ≥2 mm/coved
+criterion wording and that type-2/3 saddleback is correctly framed as
+non-diagnostic.
+
+### 19. 🔲 Wellens syndrome (type `wellens`)
+Lesson + 3 questions: biphasic/deep symmetric T inversion in V2–V3; preserved R
+waves, minimal ST elevation, often pain-free; signifies critical proximal LAD
+stenosis. **Verify** the type A/B description and the "pain-free / preserved R"
+distinguishing features.
+
+### 20. 🔲 De Winter T waves (type `de-winter`)
+Lesson + 2 questions: upsloping ST depression at the J point with tall symmetric
+T waves ± aVR ST elevation; STEMI-equivalent = acute proximal LAD occlusion.
+**Verify** the description and STEMI-equivalent framing.
+
+### 21. 🔲 Hyperkalaemia pattern (type `hyperkalemia`)
+Lesson + 3 questions: peaked/tented T (earliest) → P flattening + PR prolongation
+→ QRS widening → sine wave. **Verify** the ordering of changes and the sine-wave/
+arrest endpoint.
+
+Also newly **data-backed** (real PTB-XL waveforms), standard criteria — lower
+risk but worth a glance: `wpw` (short PR + delta), `long-qt` (QTc thresholds
+~450 M/470 F), `second-degree-av-block` (Mobitz I vs II), `third-degree-av-block`
+(AV dissociation). 2°/3° AVB have small real-record banks (6 and 4 records).
+
+---
+
 ## Round 2 — expanded generator (items 13–17)
 
 ### 13. 🔲 Computed ventricular-rate questions

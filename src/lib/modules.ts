@@ -7,10 +7,11 @@ export const MODULE_LABEL: Record<string, string> = {
   HYP: "Chambers & hypertrophy",
   MI: "Ischemia & infarction",
   STTC: "ST/T changes",
+  EXPERT: "Expert patterns",
 };
 
 /** Display order of modules on the curriculum. */
-export const MODULE_ORDER = ["NORM", "RHYTHM", "CD", "HYP", "MI", "STTC"];
+export const MODULE_ORDER = ["NORM", "RHYTHM", "CD", "HYP", "MI", "STTC", "EXPERT"];
 
 export function moduleLabel(superclass: string): string {
   return MODULE_LABEL[superclass] ?? "Other";

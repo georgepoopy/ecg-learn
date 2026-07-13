@@ -13,6 +13,7 @@ const KINDS = [
   ["axis", "Axis"],
   ["territory", "Territory"],
   ["lead", "Lead"],
+  ["criteria", "Concept"],
 ];
 
 function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {

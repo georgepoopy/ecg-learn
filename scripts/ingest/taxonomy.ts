@@ -173,7 +173,7 @@ export const TYPES: TypeDef[] = [
     answerLabel: "Sinus bradycardia",
     confusableWith: ["sinus-rhythm", "sinus-tachycardia", "first-degree-av-block"],
     leadFocus: "II",
-    match: (row) => has(row, "SBRAD") && !hasAny(row, ["AFIB", "AFLT", "STACH", "PACE"]),
+    match: (row) => has(row, "SBRAD") && !hasAny(row, ["AFIB", "AFLT", "STACH", "PACE", "2AVB", "3AVB"]),
     lesson: {
       estMinutes: 3,
       sections: [
@@ -218,7 +218,7 @@ export const TYPES: TypeDef[] = [
     answerLabel: "Sinus tachycardia",
     confusableWith: ["sinus-rhythm", "sinus-bradycardia", "atrial-fibrillation"],
     leadFocus: "II",
-    match: (row) => has(row, "STACH") && !hasAny(row, ["AFIB", "AFLT", "SBRAD", "PACE"]),
+    match: (row) => has(row, "STACH") && !hasAny(row, ["AFIB", "AFLT", "SBRAD", "PACE", "2AVB", "3AVB"]),
     lesson: {
       estMinutes: 3,
       sections: [
@@ -710,7 +710,7 @@ export const TYPES: TypeDef[] = [
     confusableWith: ["sinus-rhythm", "atrial-fibrillation", "sinus-bradycardia"],
     leadFocus: "II",
     tier: "intermediate",
-    match: (row) => has(row, "SARRH") && !hasAny(row, ["AFIB", "AFLT", "PVC", "PAC", "PACE"]),
+    match: (row) => has(row, "SARRH") && !hasAny(row, ["AFIB", "AFLT", "PVC", "PAC", "PACE", "2AVB", "3AVB"]),
     lesson: {
       estMinutes: 3,
       sections: [
@@ -947,6 +947,189 @@ export const TYPES: TypeDef[] = [
         "T-wave inversion, often regional",
         "No territorial ST elevation (distinguishes from STEMI)",
         "Nonspecific — many non-ischemic causes; correlate clinically",
+      ],
+    },
+  },
+
+  // ── Advanced / niche, data-backed by PTB-XL ──────────────────────────────
+  {
+    id: "second-degree-av-block",
+    name: "Second-degree AV block",
+    shortName: "2° AVB",
+    superclass: "CD",
+    scpCodes: ["2AVB"],
+    order: 19,
+    summary: "Some P waves conduct, some are dropped.",
+    answerLabel: "Second-degree AV block",
+    confusableWith: ["first-degree-av-block", "third-degree-av-block", "sinus-arrhythmia"],
+    leadFocus: "II",
+    tier: "advanced",
+    match: (row) => has(row, "2AVB") && !has(row, "3AVB"),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "In second-degree AV block, conduction from atria to ventricles fails " +
+            "intermittently — some P waves are followed by a QRS and some are not. " +
+            "There are two classic forms.",
+        },
+        {
+          heading: "Mobitz I vs Mobitz II",
+          body:
+            "Mobitz I (Wenckebach): the PR interval lengthens progressively beat to " +
+            "beat until one P wave is not conducted (a 'dropped' QRS), then the cycle " +
+            "resets. Mobitz II: the PR interval stays constant and a QRS is suddenly " +
+            "dropped without warning — this form is more dangerous and often needs a " +
+            "pacemaker.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Find the non-conducted P wave (a P with no following QRS). Then check " +
+            "whether the PR intervals before it were lengthening (Mobitz I) or constant " +
+            "(Mobitz II).",
+        },
+      ],
+      keyFacts: [
+        "Intermittent non-conducted P waves (dropped QRS)",
+        "Mobitz I: PR progressively lengthens before the dropped beat",
+        "Mobitz II: PR constant, QRS dropped suddenly",
+        "Some — but not all — P waves conduct (unlike complete block)",
+      ],
+    },
+  },
+  {
+    id: "third-degree-av-block",
+    name: "Third-degree (complete) AV block",
+    shortName: "3° AVB",
+    superclass: "CD",
+    scpCodes: ["3AVB"],
+    order: 20,
+    summary: "Atria and ventricles beat independently.",
+    answerLabel: "Third-degree (complete) AV block",
+    confusableWith: ["second-degree-av-block", "first-degree-av-block", "sinus-bradycardia"],
+    leadFocus: "II",
+    tier: "advanced",
+    match: (row) => has(row, "3AVB"),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "In third-degree (complete) AV block, no atrial impulses reach the " +
+            "ventricles. The atria and ventricles are driven by separate pacemakers " +
+            "and beat completely independently of each other.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Look for AV dissociation: regular P waves at one rate and regular QRS " +
+            "complexes at a slower rate, with no fixed relationship between them (the " +
+            "PR interval varies randomly). A slow escape rhythm — junctional (narrow) " +
+            "or ventricular (wide) — maintains the ventricular rate.",
+        },
+      ],
+      keyFacts: [
+        "Complete AV dissociation — P waves and QRS unrelated",
+        "Atrial rate faster than the (slow) ventricular escape rate",
+        "PR interval varies with no pattern",
+        "Escape rhythm: junctional (narrow) or ventricular (wide)",
+      ],
+    },
+  },
+  {
+    id: "wpw",
+    name: "Wolff–Parkinson–White (pre-excitation)",
+    shortName: "WPW",
+    superclass: "CD",
+    scpCodes: ["WPW"],
+    order: 21,
+    summary: "Short PR with a delta wave from an accessory pathway.",
+    answerLabel: "Wolff–Parkinson–White (pre-excitation)",
+    confusableWith: ["rbbb", "lbbb", "sinus-rhythm"],
+    leadFocus: "V3",
+    tier: "expert",
+    match: (row) => has(row, "WPW") && !hasAny(row, ["AFIB", "AFLT", "PACE"]) && !isAcuteMi(row),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "In Wolff–Parkinson–White there is an accessory pathway that conducts " +
+            "directly from atrium to ventricle, bypassing the AV node. Part of the " +
+            "ventricle is therefore activated early ('pre-excited').",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "The triad is a short PR interval (<120 ms), a delta wave (a slurred, " +
+            "slow upstroke at the start of the QRS), and a consequently widened QRS. " +
+            "Secondary ST-T changes are common.",
+        },
+        {
+          heading: "Why it matters",
+          body:
+            "The accessory pathway predisposes to re-entrant tachycardias (AVRT). If " +
+            "atrial fibrillation occurs, rapid conduction down the pathway can be " +
+            "dangerous. Recognition is the point here — management is clinical.",
+        },
+      ],
+      keyFacts: [
+        "Short PR interval (< 120 ms)",
+        "Delta wave — slurred initial upstroke of the QRS",
+        "Widened QRS",
+        "Predisposes to AV re-entrant tachycardia",
+      ],
+    },
+  },
+  {
+    id: "long-qt",
+    name: "Long QT interval",
+    shortName: "Long QT",
+    superclass: "STTC",
+    scpCodes: ["LNGQT"],
+    order: 22,
+    summary: "Prolonged repolarisation — a risk for torsades.",
+    answerLabel: "Long QT interval",
+    confusableWith: ["ischemic-st-t", "sinus-rhythm", "lvh"],
+    leadFocus: "II",
+    tier: "expert",
+    match: (row) => has(row, "LNGQT") && !hasAny(row, ["AFIB", "AFLT", "PACE"]) && !isAcuteMi(row),
+    lesson: {
+      estMinutes: 5,
+      sections: [
+        {
+          heading: "What it is",
+          body:
+            "The QT interval measures ventricular depolarisation plus repolarisation. " +
+            "When it is prolonged, the heart is vulnerable to a dangerous polymorphic " +
+            "ventricular tachycardia called torsades de pointes.",
+        },
+        {
+          heading: "How to recognise it",
+          body:
+            "Measure the QT from the start of the QRS to the end of the T wave and " +
+            "correct for heart rate (QTc). A QTc above roughly 450 ms in men or 470 ms " +
+            "in women is prolonged. Because QT varies with rate, always use the " +
+            "corrected value.",
+        },
+        {
+          heading: "Causes",
+          body:
+            "Congenital channelopathies, many drugs, and electrolyte abnormalities " +
+            "(low potassium, magnesium, or calcium) prolong the QT. Identifying it on " +
+            "the ECG prompts a search for a reversible cause.",
+        },
+      ],
+      keyFacts: [
+        "QTc > ~450 ms (men) / ~470 ms (women)",
+        "Always rate-correct the QT (QTc)",
+        "Risk of torsades de pointes (polymorphic VT)",
+        "Causes: congenital, drugs, low K⁺/Mg²⁺/Ca²⁺",
       ],
     },
   },

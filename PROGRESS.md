@@ -343,3 +343,35 @@ Build clean (routes: /, /practice, /free, /dashboard, /learn, /preview); FSRS
 grading persists; interleaving, free-mode filters, library, and dashboard
 analytics all confirmed in-browser via DOM/interaction (screenshot tool was
 flaky this session, so verification was functional rather than visual).
+
+## R2 Phase 3 — Niche / advanced content ✅
+
+Broadened coverage into harder and niche territory. **26 types now** (22
+data-backed + 4 authored), still ~1,968 questions.
+
+### Data-backed niche types (real PTB-XL waveforms + lessons)
+- **WPW / pre-excitation** (79 records) — short PR, delta wave.
+- **Long QT** (117) — QTc thresholds, torsades risk.
+- **Second-degree AV block** (Mobitz I vs II) and **Third-degree AV block**
+  (AV dissociation) — small real-record banks (6 and 4), so supplemented by their
+  lessons; flagged.
+
+### Authored expert content (waveform-free "concept" questions)
+For patterns PTB-XL underrepresents, authored originally from standard criteria
+(`scripts/ingest/authored.ts`), each in a new **"Expert patterns"** module:
+- **Brugada**, **Wellens**, **De Winter**, **Hyperkalaemia** — a lesson + 2–3
+  concept questions each (11 authored questions). Each explanation says why the
+  answer is right and why the distractors (common mimics) are wrong.
+- Stored with `authored=true`, `kind="criteria"`, `recordId=null`, `tier=expert`.
+  The quiz renders these with a "Concept question — no tracing" panel instead of a
+  waveform. New **Concept** filter added to Free Practice.
+
+### Verified in-browser
+The Brugada concept question renders without a canvas, grades correctly, and its
+explanation contrasts the coved pattern against pericarditis/saddleback. All 7
+modules (incl. Expert patterns) and all 8 new types appear in the library.
+
+### ⚠️ Clinician review — REVIEW.md items 18–21
+Every authored niche lesson + question (Brugada / Wellens / De Winter /
+hyperkalaemia) is flagged for sign-off before it should be treated as
+authoritative.

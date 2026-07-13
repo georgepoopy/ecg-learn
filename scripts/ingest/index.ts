@@ -21,6 +21,7 @@ import { TYPES, typeTier, type PtbRow, type ScpMap } from "./taxonomy";
 import { TIER_RANK } from "./labels";
 import { decodeLeads } from "./features";
 import { generateForRecord, type GenQuestion } from "./generate";
+import { AUTHORED_TYPES, AUTHORED_QUESTIONS } from "./authored";
 
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const DATA_DIR = path.join(PROJECT_ROOT, "data", "ptb-xl");
@@ -236,13 +237,65 @@ async function main() {
     console.log(`  ✓ ${t.id.padEnd(22)} ${made} questions from ${recordsProcessed} records`);
   }
 
+  // ── Authored niche/expert types + waveform-free questions ────────────────
+  let authoredCount = 0;
+  for (const at of AUTHORED_TYPES) {
+    await prisma.ecgType.create({
+      data: {
+        id: at.id,
+        name: at.name,
+        shortName: at.shortName,
+        superclass: at.superclass,
+        scpCodes: JSON.stringify([]),
+        summary: at.summary,
+        order: at.order,
+        tier: at.tier,
+        lesson: {
+          create: {
+            estMinutes: at.lesson.estMinutes,
+            sections: JSON.stringify(at.lesson.sections),
+            keyFacts: JSON.stringify(at.lesson.keyFacts),
+          },
+        },
+      },
+    });
+  }
+  for (const aq of AUTHORED_QUESTIONS) {
+    const shuffled = shuffle(aq.options);
+    const options = shuffled.map((label, i) => ({ id: String.fromCharCode(97 + i), label }));
+    const correctOptionId = options.find((o) => o.label === aq.options[0])!.id;
+    await prisma.question.create({
+      data: {
+        typeId: aq.typeId,
+        recordId: null,
+        kind: "criteria",
+        tier: aq.tier,
+        stem: aq.stem,
+        options: JSON.stringify(options),
+        correctOptionId,
+        explanation: aq.explanation,
+        difficulty: TIER_RANK[aq.tier],
+        labels: JSON.stringify([]),
+        topic: aq.typeId,
+        authored: true,
+        leadFocus: null,
+      },
+    });
+    authoredCount++;
+    totalQuestions++;
+  }
+  console.log(`  ✓ authored: ${AUTHORED_TYPES.length} types, ${authoredCount} questions`);
+
   await prisma.user.upsert({ where: { id: "local" }, update: {}, create: { id: "local" } });
 
   zip.close();
   await prisma.$disconnect();
 
   console.log("\n  by kind: " + Object.entries(kindTotals).map(([k, v]) => `${k}=${v}`).join("  "));
-  console.log(`✔ Ingest complete: ${TYPES.length} types, ${totalQuestions} questions.`);
+  console.log(
+    `✔ Ingest complete: ${TYPES.length + AUTHORED_TYPES.length} types ` +
+      `(${TYPES.length} data-backed + ${AUTHORED_TYPES.length} authored), ${totalQuestions} questions.`,
+  );
 }
 
 main().catch((err) => {
