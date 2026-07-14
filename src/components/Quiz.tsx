@@ -28,12 +28,14 @@ const KIND_LABEL: Record<string, string> = {
 export default function Quiz({
   initial,
   preferType,
+  typeIds,
   mode = "review",
   tier,
   kind,
 }: {
   initial: QuestionPayload | null;
   preferType?: string;
+  typeIds?: string[];
   mode?: "review" | "free";
   tier?: string;
   kind?: string;
@@ -64,6 +66,7 @@ export default function Quiz({
     setBusy(true);
     const q = await fetchNextQuestion({
       preferType,
+      typeIds,
       excludeId: current?.questionId,
       mode,
       tier,

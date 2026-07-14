@@ -124,3 +124,18 @@ export function demonstratedCompetence(seen: number, correct: number, mastery: n
 }
 
 export type ProgressStatus = "mastered" | "learning" | "available" | "locked";
+
+/** Group a flat list of items (with `id`) into the category tree, tree-ordered. */
+export function groupByCategory<T extends { id: string }>(items: T[]) {
+  const byId = new Map(items.map((i) => [i.id, i]));
+  return CATEGORY_TREE.map((c) => ({
+    id: c.id,
+    label: c.label,
+    blurb: c.blurb,
+    subs: c.subs.map((s) => ({
+      id: s.id,
+      label: s.label,
+      items: s.typeIds.map((id) => byId.get(id)).filter((x): x is T => Boolean(x)),
+    })),
+  }));
+}

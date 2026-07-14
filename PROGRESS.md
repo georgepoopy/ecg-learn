@@ -77,6 +77,32 @@ through *Expert patterns*. A DFS gives the 26-type progression **sequence**.
 Phase 3 turns this into a visual progression map and wires Free-Practice
 jump-ahead.
 
+## R3 Phase 3 — Progression map UI + Free-Practice jump-ahead ✅
+
+### Progression map (the new home)
+- Rebuilt the home into a **visual progression map** grouped by the category
+  tree: 7 categories → subcategories → ordered type **nodes** connected by `›`,
+  each colour-coded by status (available "Next up" / learning / mastered /
+  locked) with a status dot, mastery bar, due badge, and lock icon. The guided
+  "next" node gets a highlight ring. Per-category "N/M mastered" progress + a
+  legend.
+- **Node actions:** unlocked → jump straight to practising that type; otherwise →
+  its lesson. Locked nodes read "Jump ahead" (still learnable). A **Continue**
+  action card points at the next actionable type; **Review N due** and **Free
+  practice** cards alongside.
+
+### Free-Practice jump-ahead
+- Free Practice gained a **Category** filter (alongside Level and Question type),
+  so users can self-pace to any category. Picking a category you haven't reached
+  shows a **"jump ahead"** link to learn its first type. The scheduler now
+  accepts a `typeIds` restriction (intersected with the unlocked bank).
+
+### Verified in-browser
+Map renders all 7 categories / 26 nodes with correct lock states and connectors
+(light + dark); "Continue" targets the learning type; Free-Practice category
+filter serves that category's questions, and an un-reached category surfaces the
+jump-ahead link. Build clean.
+
 ---
 
 ## Phase 1 — Data pipeline ✅ (awaiting your review)

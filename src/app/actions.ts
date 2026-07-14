@@ -83,6 +83,8 @@ function toPayload(state: StateWithQuestion, dueRemaining: number, ahead: boolea
 
 export interface NextOptions {
   preferType?: string;
+  /** Restrict to this set of type ids (e.g. a category), intersected with unlocked. */
+  typeIds?: string[];
   excludeId?: string;
   /** "review" = due-first (default); "free" = drill anything, weak items first. */
   mode?: "review" | "free";
@@ -97,7 +99,7 @@ export interface NextOptions {
  * down-weighted so sessions interleave old and new material.
  */
 export async function fetchNextQuestion(opts: NextOptions = {}): Promise<QuestionPayload | null> {
-  const { preferType, excludeId, mode = "review", tier, kind } = opts;
+  const { preferType, typeIds: restrictTypeIds, excludeId, mode = "review", tier, kind } = opts;
   const userId = await getUserId();
   await ensureUser(userId);
   const now = new Date();
@@ -110,7 +112,11 @@ export async function fetchNextQuestion(opts: NextOptions = {}): Promise<Questio
   const masteryByType = new Map(unlocked.map((u) => [u.typeId, u.masteryScore]));
 
   let typeIds = unlocked.map((u) => u.typeId);
+  if (restrictTypeIds && restrictTypeIds.length > 0) {
+    typeIds = typeIds.filter((id) => restrictTypeIds.includes(id));
+  }
   if (preferType && typeIds.includes(preferType)) typeIds = [preferType];
+  if (typeIds.length === 0) return null;
 
   const questionFilter: Record<string, unknown> = { typeId: { in: typeIds } };
   if (kind) questionFilter.kind = kind;
