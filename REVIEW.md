@@ -9,6 +9,41 @@ Status key: 🔲 unreviewed · ✅ verified · ✏️ needs edit
 
 ---
 
+## Round 3 — Chapman-Shaoxing/Ningbo SNOMED mapping (items 22–25)
+
+Second data source added (CC-BY 4.0, license-verified — see DATA_SOURCES.md).
+Records labelled with SNOMED-CT are mapped into the existing taxonomy via
+`scripts/ingest/chapman-map.ts`. Mapping decisions to verify:
+
+### 22. 🔲 Generic MI SNOMED codes are NOT mapped
+**Decision:** SNOMED 164865005 ("myocardial infarction") and its wall variants
+carry no acuity, so they are **excluded** — mapping them to our acute-STEMI type
+would mislabel old/indeterminate MI as an acute ST-elevation pattern. Chapman
+therefore contributes **no** STEMI questions. **Question:** accept exclusion, or
+add a dedicated "prior MI / pathological Q-wave" type to use them?
+
+### 23. 🔲 Left-bundle variants share one SNOMED code
+**Decision:** In this dataset LBBB / "left back BBB" / "left front BBB" all share
+SNOMED 164909002, so fascicular subtypes cannot be distinguished from the code;
+all map to **LBBB**. **Question:** acceptable, or drop these to avoid conflating
+LAFB/LPFB with LBBB?
+
+### 24. 🔲 Axis questions suppressed for Chapman records
+**Decision:** Chapman records have no heart-axis label to cross-check a computed
+axis against, so **axis questions are not generated** from them (rate questions
+are kept — they cross-check against the SB/ST labels). **Question:** confirm this
+conservative choice.
+
+### 25. 🔲 SNOMED → SCP condition equivalences
+**Decision:** e.g. Chapman "Sinus Irregularity" (427393009) → our sinus
+arrhythmia; "ST-T Change"/"ST drop-down" → ST-depression/ischaemic-ST-T group;
+"QT interval extension" → Long QT; "T wave opposite" → T inversion. Full table in
+`chapman-map.ts`. **Question:** sanity-check the equivalences. Rare rhythms with
+no teachable type yet (AVNRT, AVRT, junctional, wandering pacemaker, U waves) are
+recognised but **not** turned into questions.
+
+---
+
 ## Round 2 — authored niche/expert content (items 18–21)
 
 These are **originally authored** waveform-free "concept" questions and lessons

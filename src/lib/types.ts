@@ -17,7 +17,8 @@ export interface QuestionPayload {
   leadFocus: string | null;
   /** null for authored, waveform-free items. */
   record: {
-    ecgId: number;
+    source: string;
+    externalId: string;
     signalsB64: string;
     leadOrder: string[];
     gain: number;

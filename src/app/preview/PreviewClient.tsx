@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import EcgViewer from "@/components/EcgViewer";
+import { sourceLabel } from "@/lib/datasets";
 
 export interface PreviewRecord {
   typeId: string;
   typeName: string;
   shortName: string;
   recordId: string;
-  ecgId: number;
+  source: string;
+  externalId: string;
   signalsB64: string;
   leadOrder: string[];
   gain: number;
@@ -47,7 +49,7 @@ export default function PreviewClient({ records }: { records: PreviewRecord[] })
           {rec.typeName}
         </h2>
         <p className="text-xs text-slate-400">
-          PTB-XL record #{rec.ecgId} · {rec.fs} Hz · {rec.leadOrder.length} leads
+          {sourceLabel(rec.source)} record {rec.externalId} · {rec.fs} Hz · {rec.leadOrder.length} leads
         </p>
       </div>
 
@@ -59,7 +61,7 @@ export default function PreviewClient({ records }: { records: PreviewRecord[] })
         fs={rec.fs}
         nSamples={rec.nSamples}
         defaultHighlight={rec.leadFocus}
-        caption={`Rendered from raw PTB-XL signal (record #${rec.ecgId}).`}
+        caption={`Rendered from raw ${sourceLabel(rec.source)} signal (record ${rec.externalId}).`}
       />
     </div>
   );

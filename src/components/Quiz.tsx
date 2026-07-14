@@ -5,6 +5,7 @@ import Link from "next/link";
 import EcgViewer from "./EcgViewer";
 import AnimatedBar from "./AnimatedBar";
 import { submitAnswer, fetchNextQuestion } from "@/app/actions";
+import { sourceLabel } from "@/lib/datasets";
 import type { QuestionPayload, SubmitResult } from "@/lib/types";
 
 const TIER_STYLE: Record<string, string> = {
@@ -164,7 +165,7 @@ export default function Quiz({
           fs={current.record.fs}
           nSamples={current.record.nSamples}
           defaultHighlight={result ? current.leadFocus : null}
-          caption={`PTB-XL record #${current.record.ecgId}`}
+          caption={`${sourceLabel(current.record.source)} record ${current.record.externalId}`}
         />
       ) : (
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">

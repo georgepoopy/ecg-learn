@@ -39,10 +39,11 @@ model Lesson {
   keyFacts   String // JSON: string[] (the criteria this type is identified by)
 }
 
-/// A decoded PTB-XL waveform record (12-lead, 10 s).
+/// A decoded 12-lead waveform record (10 s) from an open dataset.
 model Record {
-  id         String @id // e.g. "ptbxl-00123"
-  ecgId      Int    @unique
+  id         String @id // e.g. "ptbxl-00123" or "chapman-JS00001"
+  source     String @default("ptbxl") // ptbxl | chapman
+  externalId String // dataset-native id, e.g. "123" or "JS00001"
   fs         Int // sampling rate (Hz)
   nSamples   Int
   gain       Float // ADU per mV (from .hea)
@@ -51,6 +52,8 @@ model Record {
   ptbReport  String? // original clinician report string (reference only)
 
   questions Question[]
+
+  @@unique([source, externalId])
 }
 
 /// A question. Usually shows a real waveform, but authored items may have none.

@@ -67,7 +67,8 @@ function toPayload(state: StateWithQuestion, dueRemaining: number, ahead: boolea
     leadFocus: q.leadFocus,
     record: q.record
       ? {
-          ecgId: q.record.ecgId,
+          source: q.record.source,
+          externalId: q.record.externalId,
           signalsB64: q.record.signalsB64,
           leadOrder: JSON.parse(q.record.leads),
           gain: q.record.gain,

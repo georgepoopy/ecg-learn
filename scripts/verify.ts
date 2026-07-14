@@ -11,6 +11,24 @@ async function main() {
 
   const byKind = await prisma.question.groupBy({ by: ["kind"], _count: true });
   console.log("By kind:  " + byKind.map((k) => `${k.kind}=${k._count}`).join("  "));
+  const bySource = await prisma.record.groupBy({ by: ["source"], _count: true });
+  console.log("Records by source:  " + bySource.map((s) => `${s.source}=${s._count}`).join("  "));
+
+  // Decode a Chapman record's lead II to confirm the .mat offset/orientation.
+  const chap = await prisma.record.findFirst({ where: { source: "chapman" } });
+  if (chap) {
+    const leads: string[] = JSON.parse(chap.leads);
+    const buf = Buffer.from(chap.signalsB64, "base64");
+    const nSig = leads.length;
+    const nS = buf.length / 2 / nSig;
+    const li = Math.max(0, leads.map((l) => l.toUpperCase()).indexOf("II"));
+    let min = Infinity, max = -Infinity;
+    for (let i = 0; i < nS; i++) {
+      const mv = buf.readInt16LE((i * nSig + li) * 2) / chap.gain;
+      if (mv < min) min = mv; if (mv > max) max = mv;
+    }
+    console.log(`Chapman ${chap.externalId}: fs=${chap.fs} samples=${nS} lead II ${min.toFixed(3)}..${max.toFixed(3)} mV (expect physiological ~ -1..2)`);
+  }
   const byTier = await prisma.question.groupBy({ by: ["tier"], _count: true });
   console.log("By tier:  " + byTier.map((k) => `${k.tier}=${k._count}`).join("  "));
 

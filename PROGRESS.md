@@ -4,6 +4,49 @@ Running log of what changed each phase and what needs your review.
 
 ---
 
+# ROUND 3 — second dataset, category tree, progression map
+
+## R3 Phase 1 — Multi-dataset ingestion + DATA_SOURCES.md ✅
+
+Added a **second, license-verified** open dataset alongside PTB-XL. **No web
+scraping** — data comes only from PhysioNet's official host.
+
+### License verification (recorded in DATA_SOURCES.md)
+- Read licenses from PhysioNet's own pages. **Chapman-Shaoxing/Ningbo**
+  ("ecg-arrhythmia" v1.0.0) is **CC-BY 4.0** with a clear citation (Zheng et al.,
+  2022) — chosen as the cleanest standalone license. The wider CinC-2021 sources
+  (CPSC, Georgia/G12EC) are CC-BY 4.0 per that collection and are **adapter-ready
+  but not yet ingested**. The copyrighted `The-ECG-Made-Easy` PDF is explicitly
+  **not** a content source.
+
+### Pipeline
+- **`.mat` reader** (`scripts/ingest/mat.ts`): decodes the MATLAB-v4 signal files
+  (24-byte header → sample-interleaved int16, same layout as PTB-XL). Verified a
+  Chapman lead II decodes to −0.52..0.85 mV (physiological).
+- **SNOMED-CT → taxonomy map** (`scripts/ingest/chapman-map.ts`): high-confidence
+  mappings only; MI-acuity, shared LBBB codes, and rare rhythms deliberately
+  excluded (→ REVIEW.md 22–25).
+- **Bounded downloader** (`scripts/fetch/chapman.ts`, `npm run fetch:chapman`):
+  pulls a deterministic, per-condition-capped subset (380 records) straight from
+  PhysioNet — a direct licensed download, not scraping.
+- **Multi-source schema**: `Record` now carries `source` + `externalId`
+  (`@@unique([source, externalId])`); the whole app shows dataset-aware
+  attribution ("PTB-XL record …" / "Chapman-Shaoxing/Ningbo record JS…").
+- Ingest runs both sources through the **same** generator/dedupe; axis questions
+  are suppressed for Chapman (no axis label to verify against).
+
+### Result
+**2,504 questions** (was 1,968) over **966 records** — **787 PTB-XL + 179
+Chapman**. Chapman notably enriches the thin AV-block types (**2°/3° AVB had
+14/16 PTB-XL records; now +20 each**). Verified in-browser: a Chapman 2° AVB
+tracing renders correctly with its source attribution.
+
+### ⚠️ Clinician review — REVIEW.md items 22–25
+MI-acuity exclusion, shared LBBB code, Chapman axis suppression, and the SNOMED→
+condition equivalences.
+
+---
+
 ## Phase 1 — Data pipeline ✅ (awaiting your review)
 
 ### What was built

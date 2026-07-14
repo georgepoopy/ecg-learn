@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "ingest": "tsx scripts/ingest/index.ts",
+    "fetch:chapman": "tsx scripts/fetch/chapman.ts",
     "db:push": "prisma db push",
     "db:reset": "prisma db push --force-reset && npm run ingest",
     "progress:reset": "tsx scripts/reset-progress.ts",

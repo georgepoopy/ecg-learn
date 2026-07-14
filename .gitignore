@@ -34,6 +34,13 @@ yarn-error.log*
 # Only the CC-BY metadata CSVs under data/ptb-xl are kept.
 /data/ptb-xl/records*/
 
+# Chapman-Shaoxing/Ningbo raw signals are NOT committed (bulk, re-downloadable
+# via `npm run fetch:chapman`). Keep the license, condition map, RECORDS, and the
+# small `selected.json` manifest so ingestion is reproducible.
+/data/chapman-shaoxing/WFDBRecords/
+/data/chapman-shaoxing/**/*.mat
+/data/chapman-shaoxing/**/*.hea
+
 # typescript
 *.tsbuildinfo
 

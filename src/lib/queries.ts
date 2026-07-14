@@ -98,7 +98,8 @@ export interface LessonView {
   available: boolean;
   questionCount: number;
   sampleRecord: {
-    ecgId: number;
+    source: string;
+    externalId: string;
     signalsB64: string;
     leadOrder: string[];
     gain: number;
@@ -144,7 +145,8 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
     questionCount: await prisma.question.count({ where: { typeId } }),
     sampleRecord: rec
       ? {
-          ecgId: rec.ecgId,
+          source: rec.source,
+          externalId: rec.externalId,
           signalsB64: rec.signalsB64,
           leadOrder: JSON.parse(rec.leads),
           gain: rec.gain,

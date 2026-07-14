@@ -16,7 +16,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { parse } from "csv-parse/sync";
 import { makePrisma } from "../db";
-import { ZipReader, readRecord } from "./wfdb";
+import { ZipReader, readRecord, parseHeader } from "./wfdb";
+import { readMat } from "./mat";
 import { TYPES, typeTier, type PtbRow, type ScpMap } from "./taxonomy";
 import { TIER_RANK } from "./labels";
 import { decodeLeads } from "./features";
@@ -203,7 +204,8 @@ async function main() {
       await prisma.record.create({
         data: {
           id: recordId,
-          ecgId: row.ecgId,
+          source: "ptbxl",
+          externalId: String(row.ecgId),
           fs: Math.round(decoded.fs / DS_FACTOR),
           nSamples: ds.nSamples,
           gain: decoded.gain,
@@ -285,6 +287,79 @@ async function main() {
     totalQuestions++;
   }
   console.log(`  ✓ authored: ${AUTHORED_TYPES.length} types, ${authoredCount} questions`);
+
+  // ── Chapman-Shaoxing/Ningbo (CC-BY 4.0) — second source ──────────────────
+  const CHAPMAN_DIR = path.join(PROJECT_ROOT, "data", "chapman-shaoxing");
+  const selectedPath = path.join(CHAPMAN_DIR, "selected.json");
+  const CHAPMAN_PER_TYPE = 20;
+  if (fs.existsSync(selectedPath)) {
+    interface Sel { rel: string; ecgId: string; snomed: string[]; scp: Record<string, number> }
+    const selected: Sel[] = JSON.parse(fs.readFileSync(selectedPath, "utf8"));
+    const chapPerType: Record<string, number> = {};
+    let chapMade = 0;
+    let chapRecords = 0;
+
+    for (const sel of shuffle(selected)) {
+      // Synthesize a taxonomy-compatible row (no axis / infarct-stage labels).
+      const row: PtbRow = {
+        ecgId: 0, scp: sel.scp, filenameHr: sel.rel, report: "",
+        infarctionStadium1: "", heartAxis: "",
+      };
+      const t = TYPES.find((tp) => tp.match(row));
+      if (!t) continue;
+      if ((chapPerType[t.id] ?? 0) >= CHAPMAN_PER_TYPE) continue;
+
+      const heaPath = path.join(CHAPMAN_DIR, `${sel.rel}.hea`);
+      const matPath = path.join(CHAPMAN_DIR, `${sel.rel}.mat`);
+      if (!fs.existsSync(heaPath) || !fs.existsSync(matPath)) continue;
+      let h;
+      try { h = parseHeader(fs.readFileSync(heaPath, "utf8")); } catch { continue; }
+      if (h.nSig !== 12) continue;
+      let mat;
+      try { mat = readMat(matPath, h.nSig, h.nSamples); } catch { continue; }
+
+      const gain = h.gains[0];
+      const sig = decodeLeads(mat.rawDat, h.leads, gain, h.fs, h.nSamples);
+      const ds = downsample(mat.rawDat, h.nSig, h.nSamples, DS_FACTOR);
+
+      // Drop axis questions for Chapman (no heart-axis label to cross-check).
+      const generated = generateForRecord(t, row, sig, rand).filter((q) => q.kind !== "axis");
+      if (generated.length === 0) continue;
+
+      chapPerType[t.id] = (chapPerType[t.id] ?? 0) + 1;
+      chapRecords++;
+      const recordId = `chapman-${sel.ecgId}`;
+      await prisma.record.create({
+        data: {
+          id: recordId,
+          source: "chapman",
+          externalId: sel.ecgId,
+          fs: Math.round(h.fs / DS_FACTOR),
+          nSamples: ds.nSamples,
+          gain,
+          leads: JSON.stringify(h.leads),
+          signalsB64: ds.buf.toString("base64"),
+          ptbReport: null,
+        },
+      });
+      for (const q of generated) {
+        await prisma.question.create({
+          data: {
+            typeId: t.id, recordId, kind: q.kind, tier: q.tier, stem: q.stem,
+            options: JSON.stringify(q.options), correctOptionId: q.correctOptionId,
+            explanation: q.explanation, difficulty: TIER_RANK[q.tier],
+            labels: JSON.stringify(q.labels), leadFocus: q.leadFocus,
+          },
+        });
+        kindTotals[q.kind] = (kindTotals[q.kind] ?? 0) + 1;
+        chapMade++;
+        totalQuestions++;
+      }
+    }
+    console.log(`  ✓ chapman: ${chapRecords} records, ${chapMade} questions`);
+  } else {
+    console.log("  (chapman subset not staged — skipping second source)");
+  }
 
   await prisma.user.upsert({ where: { id: "local" }, update: {}, create: { id: "local" } });
 

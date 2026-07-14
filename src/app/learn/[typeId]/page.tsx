@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getLesson } from "@/lib/queries";
 import EcgViewer from "@/components/EcgViewer";
 import LessonUnlock from "@/components/LessonUnlock";
+import { sourceLabel } from "@/lib/datasets";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ export default async function LessonPage({
             fs={lesson.sampleRecord.fs}
             nSamples={lesson.sampleRecord.nSamples}
             defaultHighlight={lesson.sampleRecord.leadFocus}
-            caption={`A real ${lesson.name} tracing (PTB-XL #${lesson.sampleRecord.ecgId}).`}
+            caption={`A real ${lesson.name} tracing (${sourceLabel(lesson.sampleRecord.source)} ${lesson.sampleRecord.externalId}).`}
           />
         </div>
       )}
