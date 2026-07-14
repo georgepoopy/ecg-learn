@@ -19,7 +19,12 @@ export async function unlockType(typeId: string): Promise<{ count: number }> {
     create: { userId, typeId, unlocked: true, unlockedAt: now },
   });
 
-  const questions = await prisma.question.findMany({ where: { typeId }, select: { id: true } });
+  // Only approved questions enter the live bank (authored/pending items are held
+  // out until clinician sign-off).
+  const questions = await prisma.question.findMany({
+    where: { typeId, reviewStatus: "approved" },
+    select: { id: true },
+  });
   const card = newCardFields(now);
   await prisma.$transaction(
     questions.map((q) =>
@@ -118,7 +123,10 @@ export async function fetchNextQuestion(opts: NextOptions = {}): Promise<Questio
   if (preferType && typeIds.includes(preferType)) typeIds = [preferType];
   if (typeIds.length === 0) return null;
 
-  const questionFilter: Record<string, unknown> = { typeId: { in: typeIds } };
+  const questionFilter: Record<string, unknown> = {
+    typeId: { in: typeIds },
+    reviewStatus: "approved",
+  };
   if (kind) questionFilter.kind = kind;
   if (tier) questionFilter.tier = tier;
 

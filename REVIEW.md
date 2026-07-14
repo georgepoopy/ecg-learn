@@ -7,6 +7,14 @@ silently presented as fact.
 
 Status key: 🔲 unreviewed · ✅ verified · ✏️ needs edit
 
+> **Live-bank gating (R3 Phase 4):** items marked `authored`/`pending` are now
+> **held out of the live practice bank** (`Question.reviewStatus = "pending"`) and
+> will only appear once a clinician approves them. Currently this covers the 4
+> authored Expert-pattern topics (items 18–21): their **lessons are readable**
+> (with an "awaiting sign-off" banner) but their **11 questions are not
+> practiceable**. Everything else (items 13–17, 22–25) is dataset-derived and
+> live, but still listed here for method/label verification.
+
 ---
 
 ## Round 3 — Chapman-Shaoxing/Ningbo SNOMED mapping (items 22–25)

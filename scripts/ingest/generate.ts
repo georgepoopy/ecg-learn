@@ -171,7 +171,8 @@ function tRate(type: TypeDef, row: PtbRow, sig: LeadSignals, rng: Rng): GenQuest
     correctOptionId,
     explanation:
       `≈ ${bpm} bpm, measured from the R–R interval across the 10-second strip ` +
-      `(${r.nBeats} beats detected). Normal is 60–100 bpm.`,
+      `(${r.nBeats} beats detected). Normal is 60–100 bpm. The other options are ` +
+      `inconsistent with the measured R–R spacing.`,
     leadFocus: "II",
     labels: presentCodes(row),
     dedupeKey: "rate",
@@ -202,7 +203,8 @@ function tAxis(type: TypeDef, row: PtbRow, sig: LeadSignals, rng: Rng): GenQuest
     explanation:
       `Lead I net QRS is ${a.netI >= 0 ? "positive" : "negative"} and aVF net QRS is ` +
       `${a.netAVF >= 0 ? "positive" : "negative"} → ${correct.toLowerCase()}. ` +
-      `(Normal axis: I and aVF both positive.)`,
+      `(Normal axis: I and aVF both positive.) The other quadrants require a ` +
+      `different I/aVF polarity combination, which isn't present here.`,
     leadFocus: "I",
     labels: presentCodes(row),
     dedupeKey: "axis",
@@ -240,7 +242,8 @@ function tTerritory(type: TypeDef, row: PtbRow, rng: Rng): GenQuestion | null {
     correctOptionId,
     explanation:
       `The ${correct} territory is indicated (leads ${leadMap[correct] ?? "the corresponding group"}). ` +
-      `Each region maps to a characteristic lead group.`,
+      `Each region maps to a characteristic lead group, so the other territories — ` +
+      `served by different lead groups — don't fit this pattern.`,
     leadFocus: type.leadFocus ?? null,
     labels: presentCodes(row),
     dedupeKey: "territory",
@@ -260,7 +263,8 @@ function tLead(type: TypeDef, row: PtbRow, rng: Rng): GenQuestion | null {
     options,
     correctOptionId,
     explanation:
-      `Lead ${correct} best demonstrates ${type.name.toLowerCase()} — ${typeHint(type)}.`,
+      `Lead ${correct} best demonstrates ${type.name.toLowerCase()} — ${typeHint(type)}. ` +
+      `The other leads project this change less clearly or not at all.`,
     leadFocus: correct,
     labels: presentCodes(row),
     dedupeKey: "lead",

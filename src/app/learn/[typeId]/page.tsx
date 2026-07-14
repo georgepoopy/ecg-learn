@@ -90,11 +90,23 @@ export default async function LessonPage({
       </div>
 
       <div className="mt-8 border-t border-slate-200 pt-6 dark:border-slate-800">
-        <LessonUnlock
-          typeId={lesson.id}
-          unlocked={lesson.unlocked}
-          questionCount={lesson.questionCount}
-        />
+        {lesson.pendingReview ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            <p className="font-semibold">Awaiting clinician sign-off</p>
+            <p className="mt-1 opacity-90">
+              This topic&apos;s questions are <strong>originally authored</strong> and
+              are held out of the live practice bank until a clinician verifies them
+              (see REVIEW.md). You can read the lesson above; practice questions will
+              appear here once approved.
+            </p>
+          </div>
+        ) : (
+          <LessonUnlock
+            typeId={lesson.id}
+            unlocked={lesson.unlocked}
+            questionCount={lesson.questionCount}
+          />
+        )}
       </div>
     </div>
   );

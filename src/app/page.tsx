@@ -47,7 +47,7 @@ function Node({ t, isNext }: { t: CurriculumItem; isNext: boolean }) {
           {t.shortName}
         </span>
         {t.status === "mastered" && <span className="text-amber-500">★</span>}
-        {t.status === "locked" && <span className="text-slate-400">🔒</span>}
+        {t.status === "locked" && <span className="text-slate-400">{t.pendingReview ? "⏳" : "🔒"}</span>}
         {t.dueCount > 0 && (
           <span className="rounded bg-rose-100 px-1 text-[9px] font-medium text-rose-700 dark:bg-rose-950 dark:text-rose-300">
             {t.dueCount}
@@ -63,7 +63,7 @@ function Node({ t, isNext }: { t: CurriculumItem; isNext: boolean }) {
         </div>
       ) : (
         <span className={"mt-1.5 w-fit rounded px-1.5 py-0.5 text-[9px] font-medium " + s.chip}>
-          {t.status === "locked" ? "Jump ahead" : isNext ? "Start here" : "Learn"}
+          {t.pendingReview ? "Pending review" : t.status === "locked" ? "Jump ahead" : isNext ? "Start here" : "Learn"}
         </span>
       )}
     </Link>

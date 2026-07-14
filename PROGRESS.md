@@ -532,3 +532,36 @@ kind → **7 kinds** with difficulty tiers, SM-2 → **FSRS** with cumulative
 interleaved review + Free Practice, single-file SQLite → **Turso/libSQL** with
 **multi-user auth**, and a **DEPLOY.md** to put it online. Clinician-review queue
 (`REVIEW.md`) grew to 21 flagged items.
+
+---
+
+## R3 Phase 4 — Quality gates + REVIEW triage + regression ✅
+
+### Live-bank review gate (the strict quality gate)
+- Added `Question.reviewStatus` (`approved` | `pending`). **Authored/niche items
+  are held OUT of the live bank until clinician sign-off** — `unlockType` and the
+  scheduler only touch `approved` questions; per-type counts reflect the approved
+  bank. The 4 authored Expert topics (Brugada/Wellens/De Winter/hyperK,
+  **11 questions**) are `pending`: lessons stay readable with an "awaiting
+  clinician sign-off" banner, but they can't be practised. Live bank = **2,493
+  approved** questions. Map shows them as **"Pending review" (⏳)** nodes.
+
+### Quality audit (`npm run audit`) — passes
+- no duplicate records; **no byte-identical waveforms** across records,
+- **one question per (record, kind)** — no near-duplicates,
+- **well-formed, distinct options + valid correct answer** on every question,
+- **substantive explanation** on every question; measurement kinds
+  (rate/axis/lead/territory) now also state why the distractors are wrong,
+- **all 11 authored questions confirmed held `pending`** (none leaked live).
+
+### Regression
+Core loop intact under the gate: sinus-rhythm unlocks **133 approved** questions,
+practice serves them (PTB-XL + Chapman interleaved); Brugada lesson read-only +
+gated; build clean.
+
+### Round-3 result
+**2 datasets** (PTB-XL + Chapman-Shaoxing/Ningbo, both CC-BY 4.0, no scraping) →
+966 records / **2,504 questions (2,493 live + 11 gated)**; a **category tree**
+with **sequential unlock** (+ jump-ahead), a **progression map** UI, and a
+**review gate** holding authored content until clinician sign-off. REVIEW.md now
+lists items 13–25.

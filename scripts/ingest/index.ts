@@ -280,6 +280,7 @@ async function main() {
         labels: JSON.stringify([]),
         topic: aq.typeId,
         authored: true,
+        reviewStatus: "pending", // held out of the live bank until clinician sign-off
         leadFocus: null,
       },
     });

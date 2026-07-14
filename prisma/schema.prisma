@@ -72,7 +72,8 @@ model Question {
   difficulty      Int      @default(1) // 1..4 mirrors tier
   labels          String   @default("[]") // JSON: SCP codes present on the record
   topic           String? // niche topic slug for authored items (e.g. "brugada")
-  authored        Boolean  @default(false) // true = original authored, not PTB-XL derived
+  authored        Boolean  @default(false) // true = original authored, not dataset-derived
+  reviewStatus    String   @default("approved") // approved | pending — pending = held out of the live bank until clinician sign-off
   leadFocus       String? // optional lead to spotlight
 
   states   QuestionState[]

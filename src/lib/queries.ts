@@ -19,7 +19,9 @@ export interface CurriculumItem {
   order: number;
   tier: string;
   estMinutes: number;
-  questionCount: number;
+  questionCount: number; // APPROVED (live-bank) questions only
+  /** True when the type has only authored/pending questions (held from the bank). */
+  pendingReview: boolean;
   unlocked: boolean;
   /** Not locked in the guided path (available/learning/mastered). */
   available: boolean;
@@ -44,10 +46,18 @@ export async function getCurriculum(): Promise<CurriculumItem[]> {
     orderBy: { order: "asc" },
     include: {
       lesson: true,
-      _count: { select: { questions: true } },
       progress: { where: { userId: USER_ID } },
     },
   });
+
+  // Live-bank (approved) and total question counts per type. Authored/pending
+  // items are held out of the live bank until clinician sign-off.
+  const [approvedRows, totalRows] = await Promise.all([
+    prisma.question.groupBy({ by: ["typeId"], where: { reviewStatus: "approved" }, _count: true }),
+    prisma.question.groupBy({ by: ["typeId"], _count: true }),
+  ]);
+  const approvedByType = new Map(approvedRows.map((r) => [r.typeId, r._count]));
+  const totalByType = new Map(totalRows.map((r) => [r.typeId, r._count]));
 
   // Due counts per type in one grouped query.
   const dueRows = await prisma.questionState.groupBy({
@@ -93,8 +103,13 @@ export async function getCurriculum(): Promise<CurriculumItem[]> {
     const prereq = prereqId ? snap.get(prereqId) : null;
     const prereqMet = !prereqId || (prereq ? demonstratedCompetence(prereq.seen, prereq.correct, prereq.mastery) : false);
 
+    const approvedCount = approvedByType.get(t.id) ?? 0;
+    const totalCount = totalByType.get(t.id) ?? 0;
+    const pendingReview = approvedCount === 0 && totalCount > 0;
+
     let status: ProgressStatus;
-    if (s.mastered) status = "mastered";
+    if (pendingReview) status = "locked"; // held out of the live bank
+    else if (s.mastered) status = "mastered";
     else if (unlocked) status = "learning";
     else if (prereqMet) status = "available";
     else status = "locked";
@@ -109,7 +124,8 @@ export async function getCurriculum(): Promise<CurriculumItem[]> {
       order: t.order,
       tier: t.tier,
       estMinutes: t.lesson?.estMinutes ?? 5,
-      questionCount: t._count.questions,
+      questionCount: approvedCount,
+      pendingReview,
       unlocked,
       available: status !== "locked",
       masteryScore,
@@ -139,6 +155,7 @@ export interface LessonView {
   unlocked: boolean;
   available: boolean;
   status: ProgressStatus;
+  pendingReview: boolean;
   prereqName: string | null;
   categoryLabel: string;
   subLabel: string;
@@ -190,13 +207,21 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
     const pp = pt?.progress[0];
     prereqMet = pp ? demonstratedCompetence(pp.seenCount, pp.correctCount, pp.masteryScore) : false;
   }
-  const status: ProgressStatus = mastered
-    ? "mastered"
-    : unlocked
-      ? "learning"
-      : prereqMet
-        ? "available"
-        : "locked";
+  const [approvedCount, totalCount] = await Promise.all([
+    prisma.question.count({ where: { typeId, reviewStatus: "approved" } }),
+    prisma.question.count({ where: { typeId } }),
+  ]);
+  const pendingReview = approvedCount === 0 && totalCount > 0;
+
+  const status: ProgressStatus = pendingReview
+    ? "locked"
+    : mastered
+      ? "mastered"
+      : unlocked
+        ? "learning"
+        : prereqMet
+          ? "available"
+          : "locked";
   const loc = TYPE_LOCATION[typeId];
   const available = true;
 
@@ -212,11 +237,12 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
     keyFacts: JSON.parse(type.lesson.keyFacts),
     unlocked: type.progress[0]?.unlocked ?? false,
     status,
+    pendingReview,
     prereqName,
     categoryLabel: loc?.categoryLabel ?? "Other",
     subLabel: loc?.subLabel ?? "",
     available,
-    questionCount: await prisma.question.count({ where: { typeId } }),
+    questionCount: approvedCount,
     sampleRecord: rec
       ? {
           source: rec.source,
