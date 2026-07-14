@@ -3,6 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { isMastered } from "@/lib/srs";
 import { getUserId } from "@/lib/user";
 import { retrievability } from "@/lib/fsrs";
+import {
+  prereqOf,
+  demonstratedCompetence,
+  TYPE_LOCATION,
+  type ProgressStatus,
+} from "@/lib/categories";
 
 export interface CurriculumItem {
   id: string;
@@ -15,13 +21,20 @@ export interface CurriculumItem {
   estMinutes: number;
   questionCount: number;
   unlocked: boolean;
-  /** Suggested next in the guided course (previous type unlocked, or first). */
+  /** Not locked in the guided path (available/learning/mastered). */
   available: boolean;
   masteryScore: number;
   mastered: boolean;
   dueCount: number;
   seenCount: number;
   correctCount: number;
+  // Progression
+  status: ProgressStatus; // mastered | learning | available | locked
+  categoryId: string;
+  categoryLabel: string;
+  subLabel: string;
+  prereqId: string | null;
+  prereqName: string | null;
 }
 
 export async function getCurriculum(): Promise<CurriculumItem[]> {
@@ -55,14 +68,38 @@ export async function getCurriculum(): Promise<CurriculumItem[]> {
     dueByType.set(q.typeId, (dueByType.get(q.typeId) ?? 0) + 1);
   }
 
+  // Per-type progress snapshot, for prerequisite lookups.
+  const snap = new Map<string, { unlocked: boolean; mastered: boolean; seen: number; correct: number; mastery: number }>();
+  for (const t of types) {
+    const p = t.progress[0];
+    const mastery = p?.masteryScore ?? 0;
+    const seen = p?.seenCount ?? 0;
+    snap.set(t.id, {
+      unlocked: p?.unlocked ?? false,
+      mastered: isMastered(mastery, seen > 0 ? 1 : 0),
+      seen,
+      correct: p?.correctCount ?? 0,
+      mastery,
+    });
+  }
+
   const items: CurriculumItem[] = [];
-  let prevUnlocked = true; // first lesson is always available
   for (const t of types) {
     const prog = t.progress[0];
     const unlocked = prog?.unlocked ?? false;
     const masteryScore = prog?.masteryScore ?? 0;
-    const questionCount = t._count.questions;
-    const coverage = questionCount ? (prog?.seenCount ?? 0) > 0 : false;
+    const s = snap.get(t.id)!;
+    const prereqId = prereqOf(t.id);
+    const prereq = prereqId ? snap.get(prereqId) : null;
+    const prereqMet = !prereqId || (prereq ? demonstratedCompetence(prereq.seen, prereq.correct, prereq.mastery) : false);
+
+    let status: ProgressStatus;
+    if (s.mastered) status = "mastered";
+    else if (unlocked) status = "learning";
+    else if (prereqMet) status = "available";
+    else status = "locked";
+
+    const loc = TYPE_LOCATION[t.id];
     items.push({
       id: t.id,
       name: t.name,
@@ -72,16 +109,21 @@ export async function getCurriculum(): Promise<CurriculumItem[]> {
       order: t.order,
       tier: t.tier,
       estMinutes: t.lesson?.estMinutes ?? 5,
-      questionCount,
+      questionCount: t._count.questions,
       unlocked,
-      available: prevUnlocked,
+      available: status !== "locked",
       masteryScore,
-      mastered: isMastered(masteryScore, coverage ? 1 : 0),
+      mastered: s.mastered,
       dueCount: dueByType.get(t.id) ?? 0,
-      seenCount: prog?.seenCount ?? 0,
-      correctCount: prog?.correctCount ?? 0,
+      seenCount: s.seen,
+      correctCount: s.correct,
+      status,
+      categoryId: loc?.categoryId ?? "other",
+      categoryLabel: loc?.categoryLabel ?? "Other",
+      subLabel: loc?.subLabel ?? "",
+      prereqId,
+      prereqName: prereqId ? types.find((x) => x.id === prereqId)?.name ?? null : null,
     });
-    prevUnlocked = unlocked;
   }
   return items;
 }
@@ -96,6 +138,10 @@ export interface LessonView {
   keyFacts: string[];
   unlocked: boolean;
   available: boolean;
+  status: ProgressStatus;
+  prereqName: string | null;
+  categoryLabel: string;
+  subLabel: string;
   questionCount: number;
   sampleRecord: {
     source: string;
@@ -127,7 +173,31 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
   });
   if (!type || !type.lesson) return null;
 
-  // Self-paced: every lesson is available anytime (no forced ordering).
+  // Progression status. Lessons remain learnable regardless (jump-ahead), but we
+  // surface whether this is the guided-path next step or ahead of it.
+  const unlocked = type.progress[0]?.unlocked ?? false;
+  const mastery = type.progress[0]?.masteryScore ?? 0;
+  const mastered = isMastered(mastery, (type.progress[0]?.seenCount ?? 0) > 0 ? 1 : 0);
+  const prereqId = prereqOf(typeId);
+  let prereqName: string | null = null;
+  let prereqMet = !prereqId;
+  if (prereqId) {
+    const pt = await prisma.ecgType.findUnique({
+      where: { id: prereqId },
+      include: { progress: { where: { userId: USER_ID } } },
+    });
+    prereqName = pt?.name ?? null;
+    const pp = pt?.progress[0];
+    prereqMet = pp ? demonstratedCompetence(pp.seenCount, pp.correctCount, pp.masteryScore) : false;
+  }
+  const status: ProgressStatus = mastered
+    ? "mastered"
+    : unlocked
+      ? "learning"
+      : prereqMet
+        ? "available"
+        : "locked";
+  const loc = TYPE_LOCATION[typeId];
   const available = true;
 
   const q = type.questions[0];
@@ -141,6 +211,10 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
     sections: JSON.parse(type.lesson.sections),
     keyFacts: JSON.parse(type.lesson.keyFacts),
     unlocked: type.progress[0]?.unlocked ?? false,
+    status,
+    prereqName,
+    categoryLabel: loc?.categoryLabel ?? "Other",
+    subLabel: loc?.subLabel ?? "",
     available,
     questionCount: await prisma.question.count({ where: { typeId } }),
     sampleRecord: rec

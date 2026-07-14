@@ -60,9 +60,14 @@ function TypeCard({ t, idx, suggested }: { t: CurriculumItem; idx: number; sugge
                 ★ Mastered
               </span>
             )}
-            {suggested && !t.unlocked && (
+            {suggested && t.status === "available" && (
               <span className="rounded bg-clinical-100 px-1.5 py-0.5 text-[10px] font-medium text-clinical-700 dark:bg-clinical-900 dark:text-clinical-200">
                 Suggested next
+              </span>
+            )}
+            {t.status === "locked" && (
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                🔒 after {t.prereqName}
               </span>
             )}
             {t.dueCount > 0 && (
@@ -89,9 +94,14 @@ function TypeCard({ t, idx, suggested }: { t: CurriculumItem; idx: number; sugge
           <div className="mt-2 flex flex-col items-end gap-1">
             <Link
               href={`/learn/${t.id}`}
-              className="inline-block rounded-md bg-clinical-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-clinical-700"
+              className={
+                "inline-block rounded-md px-3 py-1.5 text-xs font-medium " +
+                (t.status === "locked"
+                  ? "border border-slate-300 text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                  : "bg-clinical-600 text-white hover:bg-clinical-700")
+              }
             >
-              {t.unlocked ? "Review lesson" : "Learn"}
+              {t.unlocked ? "Review lesson" : t.status === "locked" ? "Jump ahead" : "Learn"}
             </Link>
             {t.unlocked && (
               <Link

@@ -16,29 +16,18 @@ export default async function LessonPage({
   const lesson = await getLesson(typeId);
   if (!lesson) notFound();
 
-  if (!lesson.available && !lesson.unlocked) {
-    return (
-      <div className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-4xl">🔒</p>
-        <h1 className="mt-3 text-lg font-semibold">{lesson.name} is locked</h1>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Complete the previous lesson to unlock this one.
-        </p>
-        <Link
-          href="/"
-          className="mt-5 inline-block rounded-md bg-clinical-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-clinical-700"
-        >
-          Back to curriculum
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
       <Link href="/" className="text-xs text-slate-400 hover:text-slate-600">
-        ← Curriculum
+        ← {lesson.categoryLabel} · {lesson.subLabel}
       </Link>
+
+      {lesson.status === "locked" && !lesson.unlocked && (
+        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          You&apos;re jumping ahead — the guided path suggests mastering{" "}
+          <strong>{lesson.prereqName}</strong> first. You can still learn this now.
+        </div>
+      )}
 
       <div className="mt-2 flex items-center gap-2">
         <span className="rounded bg-clinical-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-clinical-700 dark:bg-clinical-900 dark:text-clinical-200">

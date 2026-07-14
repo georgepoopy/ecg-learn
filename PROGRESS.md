@@ -45,6 +45,38 @@ tracing renders correctly with its source attribution.
 MI-acuity exclusion, shared LBBB code, Chapman axis suppression, and the SNOMED→
 condition equivalences.
 
+## R3 Phase 2 — Category tree + sequential unlock ✅
+
+Layered a guided, categorised progression on top of the existing interleaved
+FSRS bank — **without** losing self-paced freedom.
+
+### Category tree (`src/lib/categories.ts`)
+7 categories → subcategories → ordered types, e.g. *Rate & Rhythm → Sinus
+variants / Atrial / Ventricular ectopy / Paced*, *Conduction → AV blocks / Bundle
+branch / Fascicular / Pre-excitation*, *Ischaemia → ST–T changes / STEMI*, …
+through *Expert patterns*. A DFS gives the 26-type progression **sequence**.
+
+### Sequential unlock
+- Each type's prerequisite is the previous type in the sequence. A type is
+  **available** once you've **demonstrated competence** on its prerequisite
+  (mastery ≥ 0.5, or ≥6 answered at ≥67% accuracy — achievable in-session, not
+  gated behind days of FSRS intervals). Mastering unlocks the next.
+- Per-type **status**: `mastered → learning → available → locked`, computed in
+  `getCurriculum` / `getLesson`.
+- **Jump-ahead preserved:** locked types still show a "Jump ahead" button and the
+  lesson stays learnable — the gate is a *recommendation*, not a wall. Newly
+  unlocked types join the cumulative interleaved bank automatically.
+
+### Verified
+- Pure-logic test: fresh user → only sinus-rhythm available, 25 locked; after
+  competence on it, sinus-bradycardia becomes available while sinus-tachycardia
+  stays locked.
+- In-browser: cards show "Learn" / "Suggested next" / "🔒 after <prereq>" /
+  "Jump ahead"; the prerequisite chain renders correctly. Build clean.
+
+Phase 3 turns this into a visual progression map and wires Free-Practice
+jump-ahead.
+
 ---
 
 ## Phase 1 — Data pipeline ✅ (awaiting your review)
