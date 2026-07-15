@@ -83,9 +83,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         <main className="flex-1">{children}</main>
 
-        <footer className="border-t border-slate-200 dark:border-slate-800 px-6 py-4 text-xs text-slate-500 dark:text-slate-400">
-          Waveforms: PTB-XL (Wagner et al., 2020), CC-BY 4.0 — rendered from raw
-          signal data. Questions authored originally. See ATTRIBUTION.md.
+        <footer className="border-t border-slate-200 px-6 py-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+          <div className="mx-auto flex max-w-5xl flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Waveforms: PTB-XL &amp; Chapman-Shaoxing/Ningbo (CC-BY 4.0), rendered
+              from raw signal data. Questions authored originally.
+            </span>
+            <span className="flex gap-3">
+              <Link href="/about" className="hover:text-clinical-600">
+                About &amp; Terms
+              </Link>
+              <span aria-hidden>·</span>
+              <span>Not for clinical diagnosis</span>
+            </span>
+          </div>
         </footer>
       </body>
     </html>
