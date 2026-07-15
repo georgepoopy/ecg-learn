@@ -565,3 +565,31 @@ gated; build clean.
 with **sequential unlock** (+ jump-ahead), a **progression map** UI, and a
 **review gate** holding authored content until clinician sign-off. REVIEW.md now
 lists items 13–25.
+
+---
+
+## Deployment readiness (Vercel + Turso) ✅
+
+Made the app fully production-ready and push-ready; deployment itself needs the
+user's accounts (GitHub / Vercel / Turso) so those steps are documented, not done.
+
+- **Env-driven DB, prod-safe:** `src/lib/prisma.ts` now creates the libSQL client
+  **lazily** (Proxy) so importing it never touches the DB at build; **production
+  requires `TURSO_DATABASE_URL`** and fails loudly (no silent local-file fallback
+  on a serverless host). `prisma generate` confirmed to run without `DATABASE_URL`.
+- **About/Terms page** (`/about`, public): education-only callout, dataset
+  licenses + attribution (PTB-XL & Chapman, CC-BY 4.0), authored-content note,
+  terms of use, privacy. Linked from the footer; the persistent "not for clinical
+  diagnosis" banner shows on load.
+- **`.env.example`** rewritten: every var, clear comments, zero secrets.
+- **`prisma/schema.sql`**: full DDL for migrating a fresh hosted DB.
+- **`DEPLOY.md`**: click-by-click Vercel + Turso (create DB from the seeded 79 MB
+  file, GitHub push, project import, env vars, deploy, seed/migrate) + optional
+  custom-domain section; each account/secret/domain step flagged as user-only.
+- Repo committed on `main`, secrets and `dev.db`/raw signals git-ignored, ready to
+  push. Verified: clean prod build (11 routes incl `/about`); fresh signup →
+  private per-user bank works through the lazy client.
+
+**Left for the user (STOP items):** create GitHub/Vercel/Turso accounts, push the
+repo, create the Turso DB + token, set env vars, deploy, and (optionally) buy a
+domain — all in DEPLOY.md.
