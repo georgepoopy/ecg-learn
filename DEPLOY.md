@@ -41,31 +41,30 @@ npm run ingest           # generate the bank (needs the PTB-XL zip in ../Claude/
 
 ---
 
-## Step 1 — Create the Turso database (from the seeded file)  **⛔ needs your account**
+## Step 1 — Create the Turso database (web dashboard, no CLI)  **⛔ needs your account**
 
-Turso can import your existing SQLite file, so all content ships in one shot.
+The Turso command-line tool doesn't run on Windows, so we use the website to
+create the database, then a small script (`npm run seed:remote`) loads all the
+questions into it from your finished local copy.
 
-1. Install the CLI and sign in:
-   ```bash
-   # macOS/Linux:  curl -sSfL https://get.tur.so/install.sh | bash
-   # Windows:      use WSL, or see https://docs.turso.tech/cli/installation
-   turso auth signup     # opens a browser — create/sign in to your account
+1. Go to **https://app.turso.tech** and sign up (you can use GitHub).
+2. Create a database: **Databases → Create Database** → name it `ecg-learn` →
+   pick the region closest to you → **Create**.
+3. On the database's page, get its two connection values:
+   - **Database URL** — starts with `libsql://…​.turso.io` → this is `TURSO_DATABASE_URL`.
+   - **Create Token** (a.k.a. "Generate token") → copy the long string →
+     this is `TURSO_AUTH_TOKEN`. **Copy it now; it's shown once.**
+4. Put both into your local `.env` file (create it by copying `.env.example`):
    ```
-2. Create the database **from the seeded file** (run from the `ecg-learn` folder):
-   ```bash
-   turso db create ecg-learn --from-file ./prisma/dev.db
+   TURSO_DATABASE_URL="libsql://ecg-learn-<you>.turso.io"
+   TURSO_AUTH_TOKEN="<the long token>"
    ```
-3. Get the two values you'll paste into Vercel in Step 4 — **copy them somewhere
-   safe; the token is shown once:**
+5. Load all the content into the hosted database (run from the `ecg-learn` folder):
    ```bash
-   turso db show ecg-learn --url        # → TURSO_DATABASE_URL  (libsql://…​.turso.io)
-   turso db tokens create ecg-learn     # → TURSO_AUTH_TOKEN     (long string)
+   npm run seed:remote
    ```
-
-> No CLI? You can instead create an empty DB in the Turso web dashboard, then
-> load the schema from `prisma/schema.sql` via **Databases → your DB → SQL** — but
-> that gives you an **empty** bank. The `--from-file` CLI path is strongly
-> preferred because it ships all the questions.
+   It prints how many types and questions it copied. Re-running is safe (it
+   replaces the content). You'll paste the same two values into Vercel in Step 5.
 
 ---
 
@@ -140,24 +139,21 @@ That's it — the app is live.
 ---
 
 ## Updating content or schema later
-- **New/changed questions:** re-run the ingest locally, then push the refreshed
-  data to Turso:
+With `.env` still pointing at your Turso database:
+- **New/changed questions:** rebuild locally, then re-run the loader — it clears
+  and re-copies the content (accounts/progress are untouched):
   ```bash
   npm run ingest
-  # replace the hosted DB contents from the new file:
-  turso db shell ecg-learn < /dev/null   # (sanity check connectivity)
-  # easiest: destroy + recreate from the new file
-  turso db destroy ecg-learn
-  turso db create ecg-learn --from-file ./prisma/dev.db
+  npm run seed:remote
   ```
-- **Schema change (`prisma/schema.prisma`):** generate a migration SQL and apply
-  it to Turso:
+- **Schema change (`prisma/schema.prisma`):** regenerate the schema SQL first,
+  then the loader applies it and reloads content:
   ```bash
+  npm run db:push        # update your local DB
   npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/schema.sql
-  # for an incremental change, diff from the live DB instead of --from-empty
-  turso db shell ecg-learn < prisma/schema.sql
+  npm run seed:remote
   ```
-- Redeploy on Vercel (push to `main` triggers it automatically).
+- Redeploy on Vercel — pushing to `main` (`git push`) triggers it automatically.
 
 ---
 
