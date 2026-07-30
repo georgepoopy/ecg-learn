@@ -20,28 +20,33 @@ export async function unlockType(typeId: string): Promise<{ count: number }> {
   });
 
   // Only approved questions enter the live bank (authored/pending items are held
-  // out until clinician sign-off).
+  // out until clinician sign-off). Seed a review card per question in a SINGLE
+  // bulk insert — doing 100+ upserts one-by-one over a network DB blows the
+  // serverless time limit. We compute the missing set first so re-learning a
+  // type is idempotent without needing SQLite's unsupported skipDuplicates.
   const questions = await prisma.question.findMany({
     where: { typeId, reviewStatus: "approved" },
     select: { id: true },
   });
+  const existing = await prisma.questionState.findMany({
+    where: { userId, question: { typeId } },
+    select: { questionId: true },
+  });
+  const have = new Set(existing.map((e) => e.questionId));
   const card = newCardFields(now);
-  await prisma.$transaction(
-    questions.map((q) =>
-      prisma.questionState.upsert({
-        where: { userId_questionId: { userId, questionId: q.id } },
-        update: {},
-        create: {
-          userId,
-          questionId: q.id,
-          dueAt: card.dueAt,
-          stability: card.stability,
-          difficulty: card.difficulty,
-          state: card.state,
-        },
-      }),
-    ),
-  );
+  const toCreate = questions
+    .filter((q) => !have.has(q.id))
+    .map((q) => ({
+      userId,
+      questionId: q.id,
+      dueAt: card.dueAt,
+      stability: card.stability,
+      difficulty: card.difficulty,
+      state: card.state,
+    }));
+  if (toCreate.length > 0) {
+    await prisma.questionState.createMany({ data: toCreate });
+  }
 
   revalidatePath("/");
   revalidatePath("/dashboard");
