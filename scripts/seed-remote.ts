@@ -54,11 +54,12 @@ async function main() {
 
   // 1) Schema.
   const schemaPath = path.join(ROOT, "prisma", "schema.sql");
-  const schema = fs.readFileSync(schemaPath, "utf8");
+  const schema = fs.readFileSync(schemaPath, "utf8").replace(/^﻿/, "");
   const statements = schema
     .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"));
+    // drop comment lines (Prisma prefixes each statement with `-- CreateTable`)
+    .map((s) => s.split(/\r?\n/).filter((l) => !l.trim().startsWith("--")).join("\n").trim())
+    .filter((s) => s.length > 0);
   let created = 0;
   for (const stmt of statements) {
     try {
