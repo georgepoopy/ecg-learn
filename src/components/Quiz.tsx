@@ -134,18 +134,27 @@ export default function Quiz({
 
   return (
     <div key={current.questionId} className="space-y-4 motion-safe:animate-fade-slide-up">
-      {/* Session header */}
+      {/* Session header — the diagnosis/tier/kind tags are hidden until you've
+          answered, so the tags never give the answer away. */}
       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded bg-clinical-100 px-1.5 py-0.5 font-semibold text-clinical-700 dark:bg-clinical-900 dark:text-clinical-200">
-            {current.shortName}
-          </span>
-          <span className={"rounded px-1.5 py-0.5 font-medium " + (TIER_STYLE[current.tier] ?? "")}>
-            {current.tier}
-          </span>
-          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-            {KIND_LABEL[current.kind] ?? current.kind}
-          </span>
+          {result ? (
+            <>
+              <span className="rounded bg-clinical-100 px-1.5 py-0.5 font-semibold text-clinical-700 dark:bg-clinical-900 dark:text-clinical-200">
+                {current.shortName}
+              </span>
+              <span className={"rounded px-1.5 py-0.5 font-medium " + (TIER_STYLE[current.tier] ?? "")}>
+                {current.tier}
+              </span>
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                {KIND_LABEL[current.kind] ?? current.kind}
+              </span>
+            </>
+          ) : (
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+              Unknown tracing
+            </span>
+          )}
           {current.ahead ? (
             <span className="text-amber-600 dark:text-amber-400">Practicing ahead</span>
           ) : (

@@ -109,7 +109,7 @@ export interface NextOptions {
  * down-weighted so sessions interleave old and new material.
  */
 export async function fetchNextQuestion(opts: NextOptions = {}): Promise<QuestionPayload | null> {
-  const { preferType, typeIds: restrictTypeIds, excludeId, mode = "review", tier, kind } = opts;
+  const { preferType, typeIds: restrictTypeIds, excludeId, tier, kind } = opts;
   const userId = await getUserId();
   await ensureUser(userId);
   const now = new Date();
@@ -152,24 +152,17 @@ export async function fetchNextQuestion(opts: NextOptions = {}): Promise<Questio
   const baseWhere: Record<string, unknown> = { userId, question: questionFilter };
   if (excludeId) baseWhere.questionId = { not: excludeId };
 
-  // Candidate pool: due items for review mode; everything for free mode.
-  let ahead = false;
-  let pool = await prisma.questionState.findMany({
-    where: mode === "review" ? { ...baseWhere, dueAt: { lte: now } } : baseWhere,
+  // Candidate pool. Both modes draw from EVERYTHING the user has unlocked (the
+  // soonest-due 400) rather than only the strictly-due cards, so earlier-learned
+  // ECGs keep resurfacing interleaved with the newest type. The weighting below
+  // strongly prefers due + weak items, so genuinely-due cards still lead.
+  const pool = await prisma.questionState.findMany({
+    where: baseWhere,
     include: { question: { include: { type: true, record: true } } },
     orderBy: { dueAt: "asc" },
-    take: 300,
+    take: 400,
   });
-  if (pool.length === 0 && mode === "review") {
-    // Nothing due — practise ahead with the soonest/weakest items.
-    ahead = true;
-    pool = await prisma.questionState.findMany({
-      where: baseWhere,
-      include: { question: { include: { type: true, record: true } } },
-      orderBy: { dueAt: "asc" },
-      take: 300,
-    });
-  }
+  const ahead = dueRemaining === 0;
   if (pool.length === 0) {
     // Only the excluded card remains.
     const only = await findState({ userId, question: questionFilter });

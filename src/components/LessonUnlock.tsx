@@ -24,10 +24,10 @@ export default function LessonUnlock({
           ✓ Unlocked
         </span>
         <button
-          onClick={() => router.push(`/practice?type=${typeId}`)}
+          onClick={() => router.push("/practice")}
           className="rounded-md bg-clinical-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-clinical-700"
         >
-          Practice this type →
+          Practise (mixed review) →
         </button>
       </div>
     );
@@ -40,7 +40,7 @@ export default function LessonUnlock({
         startTransition(async () => {
           await unlockType(typeId);
           setDone(true);
-          router.push(`/practice?type=${typeId}`);
+          router.push("/practice"); // interleaved: mixes the new type with all learned so far
         })
       }
       className="rounded-md bg-clinical-600 px-4 py-2 text-sm font-medium text-white hover:bg-clinical-700 disabled:opacity-60"
