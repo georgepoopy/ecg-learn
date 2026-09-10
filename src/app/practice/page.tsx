@@ -5,19 +5,15 @@ import Quiz from "@/components/Quiz";
 
 export const dynamic = "force-dynamic";
 
-export default async function PracticePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ type?: string }>;
-}) {
-  const sp = await searchParams;
-  const type = typeof sp.type === "string" ? sp.type : undefined;
-
+/**
+ * Guided review is ALWAYS blind and interleaved — it never restricts to a single
+ * type and never names the diagnosis, so the screen can't give the answer away.
+ * (Deliberate single-type / filtered drilling lives on /free, where you choose.)
+ */
+export default async function PracticePage() {
   const curriculum = await getCurriculum();
   const anyUnlocked = curriculum.some((t) => t.unlocked);
-  const initial = anyUnlocked
-    ? await fetchNextQuestion({ preferType: type, mode: "review" })
-    : null;
+  const initial = anyUnlocked ? await fetchNextQuestion({}) : null;
 
   if (!anyUnlocked) {
     return (
@@ -38,31 +34,20 @@ export default async function PracticePage({
     );
   }
 
-  const activeType = type ? curriculum.find((t) => t.id === type) : null;
-
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
       <div className="mb-1 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-clinical-700 dark:text-clinical-200">
-          {activeType ? `Review · ${activeType.name}` : "Review"}
-        </h1>
-        <div className="flex gap-3 text-xs">
-          <Link href="/free" className="text-slate-400 hover:text-clinical-600">
-            Free practice →
-          </Link>
-          {activeType && (
-            <Link href="/practice" className="text-slate-400 hover:text-clinical-600">
-              All types →
-            </Link>
-          )}
-        </div>
+        <h1 className="text-lg font-semibold text-clinical-700 dark:text-clinical-200">Review</h1>
+        <Link href="/free" className="text-xs text-slate-400 hover:text-clinical-600">
+          Free practice →
+        </Link>
       </div>
       <p className="mb-5 text-xs text-slate-400">
-        {activeType
-          ? "Due items from this type, weighted by what needs work."
-          : "Interleaved across everything you've learned — due items first, weak areas weighted higher."}
+        Mixed across everything you&apos;ve learned — the tracing isn&apos;t labelled, so
+        you have to read it. Due items and weak spots come up first; ones you&apos;ve
+        missed before resurface.
       </p>
-      <Quiz initial={initial} preferType={type} mode="review" />
+      <Quiz initial={initial} mode="review" />
     </div>
   );
 }

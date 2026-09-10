@@ -40,21 +40,30 @@ export default async function LessonPage({
       </h1>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{lesson.summary}</p>
 
-      {/* Sample tracing */}
-      {lesson.sampleRecord && (
+      {/* Worked examples — a few labelled tracings to study. In practice you'll
+          see these unlabelled and mixed with other rhythms. */}
+      {lesson.examples.length > 0 && (
         <div className="mt-6">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Example tracing
+            {lesson.examples.length > 1 ? "Worked examples" : "Example tracing"}
+            <span className="ml-2 font-normal normal-case text-slate-400">
+              — study these; in practice they&apos;re unlabelled
+            </span>
           </h3>
-          <EcgViewer
-            signalsB64={lesson.sampleRecord.signalsB64}
-            leadOrder={lesson.sampleRecord.leadOrder}
-            gain={lesson.sampleRecord.gain}
-            fs={lesson.sampleRecord.fs}
-            nSamples={lesson.sampleRecord.nSamples}
-            defaultHighlight={lesson.sampleRecord.leadFocus}
-            caption={`A real ${lesson.name} tracing (${sourceLabel(lesson.sampleRecord.source)} ${lesson.sampleRecord.externalId}).`}
-          />
+          <div className="space-y-4">
+            {lesson.examples.map((ex, i) => (
+              <EcgViewer
+                key={ex.externalId + i}
+                signalsB64={ex.signalsB64}
+                leadOrder={ex.leadOrder}
+                gain={ex.gain}
+                fs={ex.fs}
+                nSamples={ex.nSamples}
+                defaultHighlight={ex.leadFocus}
+                caption={`${lesson.name} — real tracing (${sourceLabel(ex.source)} ${ex.externalId}).`}
+              />
+            ))}
+          </div>
         </div>
       )}
 

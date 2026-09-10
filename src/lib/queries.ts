@@ -160,16 +160,20 @@ export interface LessonView {
   categoryLabel: string;
   subLabel: string;
   questionCount: number;
-  sampleRecord: {
-    source: string;
-    externalId: string;
-    signalsB64: string;
-    leadOrder: string[];
-    gain: number;
-    fs: number;
-    nSamples: number;
-    leadFocus: string | null;
-  } | null;
+  sampleRecord: LessonExample | null;
+  /** A few labelled worked examples to study before the (blind) practice. */
+  examples: LessonExample[];
+}
+
+export interface LessonExample {
+  source: string;
+  externalId: string;
+  signalsB64: string;
+  leadOrder: string[];
+  gain: number;
+  fs: number;
+  nSamples: number;
+  leadFocus: string | null;
 }
 
 export async function getLesson(typeId: string): Promise<LessonView | null> {
@@ -179,9 +183,9 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
     include: {
       lesson: true,
       progress: { where: { userId: USER_ID } },
-      // Prefer an "identify" question with a real waveform for the lesson example.
+      // A few "identify" questions with real waveforms → labelled worked examples.
       questions: {
-        take: 1,
+        take: 3,
         where: { kind: "identify", recordId: { not: null } },
         orderBy: { id: "asc" },
         include: { record: true },
@@ -225,8 +229,19 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
   const loc = TYPE_LOCATION[typeId];
   const available = true;
 
-  const q = type.questions[0];
-  const rec = q?.record;
+  const examples: LessonExample[] = type.questions
+    .filter((q) => q.record)
+    .map((q) => ({
+      source: q.record!.source,
+      externalId: q.record!.externalId,
+      signalsB64: q.record!.signalsB64,
+      leadOrder: JSON.parse(q.record!.leads),
+      gain: q.record!.gain,
+      fs: q.record!.fs,
+      nSamples: q.record!.nSamples,
+      leadFocus: q.leadFocus,
+    }));
+
   return {
     id: type.id,
     name: type.name,
@@ -243,18 +258,8 @@ export async function getLesson(typeId: string): Promise<LessonView | null> {
     subLabel: loc?.subLabel ?? "",
     available,
     questionCount: approvedCount,
-    sampleRecord: rec
-      ? {
-          source: rec.source,
-          externalId: rec.externalId,
-          signalsB64: rec.signalsB64,
-          leadOrder: JSON.parse(rec.leads),
-          gain: rec.gain,
-          fs: rec.fs,
-          nSamples: rec.nSamples,
-          leadFocus: q.leadFocus,
-        }
-      : null,
+    sampleRecord: examples[0] ?? null,
+    examples,
   };
 }
 

@@ -11,6 +11,8 @@
     "fetch:chapman": "tsx scripts/fetch/chapman.ts",
     "audit": "tsx scripts/audit.ts",
     "make:icons": "tsx scripts/make-icons.ts",
+    "reserve:stats": "tsx scripts/reserve-tools.ts stats",
+    "reserve:rebalance": "tsx scripts/reserve-tools.ts rebalance",
     "seed:remote": "tsx scripts/seed-remote.ts",
     "db:push": "prisma db push",
     "db:reset": "prisma db push --force-reset && npm run ingest",

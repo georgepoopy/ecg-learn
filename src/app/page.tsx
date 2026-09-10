@@ -30,7 +30,9 @@ const STATUS: Record<string, { dot: string; ring: string; chip: string }> = {
 
 function Node({ t, isNext }: { t: CurriculumItem; isNext: boolean }) {
   const s = STATUS[t.status];
-  const href = t.unlocked ? `/practice?type=${t.id}` : `/learn/${t.id}`;
+  // Unlocked → blind interleaved review (never a single-type drill, which would
+  // give the diagnosis away). Not yet learned → the lesson.
+  const href = t.unlocked ? "/practice" : `/learn/${t.id}`;
   return (
     <Link
       href={href}
@@ -112,9 +114,9 @@ export default async function Home() {
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         {nextItem && (
           <ActionCard
-            href={nextItem.unlocked ? `/practice?type=${nextItem.id}` : `/learn/${nextItem.id}`}
+            href={nextItem.unlocked ? "/practice" : `/learn/${nextItem.id}`}
             title={nextItem.unlocked ? "Continue" : "Start next"}
-            sub={nextItem.name}
+            sub={nextItem.unlocked ? "Mixed review — no labels" : nextItem.name}
             accent
           />
         )}

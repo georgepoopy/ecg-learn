@@ -7,6 +7,86 @@ import { computeMastery } from "@/lib/srs";
 import { newCardFields, schedule } from "@/lib/fsrs";
 import type { QuestionPayload, SubmitResult } from "@/lib/types";
 
+// How many of a freshly-learned type's questions become an *active* test batch
+// right after the lesson. The rest are held in reserve (far-future due) and
+// trickle in over later sessions — so you're tested on a reasonable set, not all
+// ~100 at once, and there's always fresh material left to mix into future study.
+const INITIAL_ACTIVE = 12;
+// "Reserve" = exists in your bank but not due yet (~10 years out). The scheduler
+// promotes these once you've worked through what's currently due.
+const RESERVE_OFFSET_MS = 3650 * 86_400_000;
+// When you learn a NEW type, pull this many cards from PREVIOUSLY-learned types
+// back into the due pile — prioritising ones you got wrong — so each new lesson
+// interleaves old rhythms with the new and you practise telling them apart.
+const DIFFERENTIATORS_PER_UNLOCK = 8;
+
+/** Interleave a list across its question kinds so a batch spans identify / rate /
+ * axis / … instead of a run of near-identical prompts. */
+function roundRobinByKind<T extends { kind: string }>(items: T[]): T[] {
+  const buckets = new Map<string, T[]>();
+  for (const q of items) {
+    const b = buckets.get(q.kind);
+    if (b) b.push(q);
+    else buckets.set(q.kind, [q]);
+  }
+  const lists = [...buckets.values()];
+  const out: T[] = [];
+  for (let more = true; more; ) {
+    more = false;
+    for (const list of lists) {
+      const x = list.shift();
+      if (x) {
+        out.push(x);
+        more = true;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * On unlocking a new type, bring a few cards from earlier-learned types back to
+ * "due now" so the upcoming (blind) practice mixes old rhythms with the new.
+ * Prefers questions you've previously gotten wrong, then unseen reserve cards,
+ * and spreads the picks across your earlier types.
+ */
+async function promoteDifferentiators(userId: string, excludeTypeId: string, now: Date): Promise<void> {
+  const prior = await prisma.typeProgress.findMany({
+    where: { userId, unlocked: true, NOT: { typeId: excludeTypeId } },
+    select: { typeId: true },
+  });
+  if (prior.length === 0) return;
+  const priorIds = prior.map((p) => p.typeId);
+
+  const candidates = await prisma.questionState.findMany({
+    where: {
+      userId,
+      dueAt: { gt: now }, // not already due
+      question: { typeId: { in: priorIds }, reviewStatus: "approved" },
+    },
+    select: { questionId: true, question: { select: { typeId: true } } },
+    orderBy: [{ lapses: "desc" }, { reps: "asc" }], // previously-wrong first, then unseen
+    take: 200,
+  });
+
+  const perType = Math.max(1, Math.ceil(DIFFERENTIATORS_PER_UNLOCK / priorIds.length));
+  const perTypeCount = new Map<string, number>();
+  const pick: string[] = [];
+  for (const c of candidates) {
+    if (pick.length >= DIFFERENTIATORS_PER_UNLOCK) break;
+    const t = c.question.typeId;
+    if ((perTypeCount.get(t) ?? 0) >= perType) continue;
+    perTypeCount.set(t, (perTypeCount.get(t) ?? 0) + 1);
+    pick.push(c.questionId);
+  }
+  if (pick.length > 0) {
+    await prisma.questionState.updateMany({
+      where: { userId, questionId: { in: pick } },
+      data: { dueAt: now },
+    });
+  }
+}
+
 /** Mark a lesson complete: unlock the type and add its questions to the bank. */
 export async function unlockType(typeId: string): Promise<{ count: number }> {
   const userId = await getUserId();
@@ -26,32 +106,43 @@ export async function unlockType(typeId: string): Promise<{ count: number }> {
   // type is idempotent without needing SQLite's unsupported skipDuplicates.
   const questions = await prisma.question.findMany({
     where: { typeId, reviewStatus: "approved" },
-    select: { id: true },
+    select: { id: true, kind: true },
   });
   const existing = await prisma.questionState.findMany({
     where: { userId, question: { typeId } },
     select: { questionId: true },
   });
   const have = new Set(existing.map((e) => e.questionId));
+  const fresh = questions.filter((q) => !have.has(q.id));
+
+  // Only a small, kind-diverse batch is due immediately; the rest go to reserve
+  // so you get a reasonable test set now with plenty held back for later.
+  const activeIds = new Set(
+    roundRobinByKind(fresh)
+      .slice(0, INITIAL_ACTIVE)
+      .map((q) => q.id),
+  );
   const card = newCardFields(now);
-  const toCreate = questions
-    .filter((q) => !have.has(q.id))
-    .map((q) => ({
-      userId,
-      questionId: q.id,
-      dueAt: card.dueAt,
-      stability: card.stability,
-      difficulty: card.difficulty,
-      state: card.state,
-    }));
+  const reserveDue = new Date(now.getTime() + RESERVE_OFFSET_MS);
+  const toCreate = fresh.map((q) => ({
+    userId,
+    questionId: q.id,
+    dueAt: activeIds.has(q.id) ? card.dueAt : reserveDue,
+    stability: card.stability,
+    difficulty: card.difficulty,
+    state: card.state,
+  }));
   if (toCreate.length > 0) {
     await prisma.questionState.createMany({ data: toCreate });
   }
 
+  // Mix a few earlier-learned rhythms back in for differentiation practice.
+  await promoteDifferentiators(userId, typeId, now);
+
   revalidatePath("/");
   revalidatePath("/dashboard");
   revalidatePath(`/learn/${typeId}`);
-  return { count: questions.length };
+  return { count: activeIds.size };
 }
 
 type StateWithQuestion = NonNullable<Awaited<ReturnType<typeof findState>>>;
@@ -176,6 +267,11 @@ export async function fetchNextQuestion(opts: NextOptions = {}): Promise<Questio
     const mastery = masteryByType.get(s.question.typeId) ?? 0;
     w *= 1 + (1 - mastery) * 1.5; // weak types up to 2.5×
     w *= 1 + 1 / (s.stability + 1); // low-stability (fragile) items up-weighted
+    w *= 1 + Math.min(s.lapses, 4) * 0.7; // resurface questions you've gotten wrong
+    // Reserve cards (unseen, parked in the future) are held back while you still
+    // have due cards to work — so a lesson gives a bounded batch, and fresh
+    // material only flows once you've cleared it.
+    if (s.reps === 0 && s.dueAt.getTime() > now.getTime() && dueRemaining > 0) w *= 0.25;
     if (s.question.typeId === lastType) w *= 0.25; // interleave away from last type
     return w;
   };
