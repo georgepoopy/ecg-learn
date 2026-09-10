@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import InstallApp from "@/components/InstallApp";
 import NavLinks from "@/components/NavLinks";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/auth-actions";
@@ -9,9 +10,31 @@ import "./globals.css";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  applicationName: "ECG Learn",
   title: "ECG Learn",
   description:
     "Learn ECG interpretation progressively. Educational use only — not for clinical diagnosis.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  // Lets iOS run it full-screen as a home-screen app.
+  appleWebApp: {
+    capable: true,
+    title: "ECG Learn",
+    statusBarStyle: "default",
+  },
+  // Legacy iOS full-screen flag (Next only emits the modern name).
+  other: { "apple-mobile-web-app-capable": "yes" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#255c6e",
 };
 
 /** No-flash theme init: respects saved choice, falls back to system. */
@@ -52,6 +75,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               ECG&nbsp;Learn
             </Link>
             <div className="flex items-center gap-3">
+              <InstallApp />
               {signedIn ? (
                 <>
                   <NavLinks />

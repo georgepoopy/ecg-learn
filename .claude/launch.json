@@ -1,11 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "dev",
-      "runtimeExecutable": "C:\\Users\\georg\\AppData\\Local\\nodejs-portable\\npm.cmd",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
-    }
+    { "name": "ecg-learn-dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
   ]
 }
